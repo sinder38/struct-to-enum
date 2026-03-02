@@ -1,0 +1,25 @@
+[package]
+name = "struct-to-enum"
+version = "0.0.1"
+rust-version = "1.85.0"
+authors = ["Sinder <smirnov.sinder@gmail.com>"]
+description = "Derive macros for generating enums from structs."
+readme = "README.md"
+keywords = ["derive", "macros", "enum", "struct", "codegen"]
+categories = ["development-tools::procedural-macro-helpers"]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+quote = "1.0.44"
+heck = "0.5.0"
+syn = "2.0.117"
+proc-macro2 = "1.0.106"
+
+[dev-dependencies]
+strum_macros = "0.28.0"
+strum = "0.28.0"
+serde = { version = "1.0.228", features = ["derive"] }
+
+[lib]
+proc-macro = true
