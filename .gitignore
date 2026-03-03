@@ -4,5 +4,8 @@
 # unignore .gitignore
 !.gitignore
 
+# unignore github CI/CD
+!.github
+
 # Rust
 target
