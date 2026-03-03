@@ -9,6 +9,7 @@ keywords = ["derive", "macros", "enum", "struct", "codegen"]
 categories = ["development-tools::procedural-macro-helpers"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/sinder38/struct-to-enum"
 
 [dependencies]
 quote = "1.0.44"
