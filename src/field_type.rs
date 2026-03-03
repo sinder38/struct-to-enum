@@ -61,7 +61,8 @@ impl DeriveFieldType {
     pub fn expand(&self) -> syn::Result<TokenStream2> {
         let enum_def = self.enum_definition();
         let converter = self.converter_impl();
-        let into_array = self.field_type_array_impl();
+        // Use From/Into instead
+        // let into_array = self.field_type_array_impl();
 
         Ok(quote! {
             #enum_def
@@ -147,6 +148,7 @@ impl DeriveFieldType {
         }
     }
 
+    #[allow(dead_code)]
     fn field_type_array_impl(&self) -> TokenStream2 {
         let Self {
             vis,
@@ -156,6 +158,7 @@ impl DeriveFieldType {
             fields,
             ..
         } = self;
+        // Use From/Into instead
 
         let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
         let fields_count = fields.len();

@@ -148,14 +148,6 @@ fn into_field_types() {
     let message = "test".to_string();
 
     let test = TestGen::new(1, &message, &2, message.clone());
-    let fields = test.into_field_type_array();
-    assert!(matches!(fields, [
-        TestGenFieldType::First(1),
-        TestGenFieldType::SecondField(Some(s)),
-        TestGenFieldType::Fourth(_),
-    ] if s == &message));
-
-    let test = TestGen::new(1, &message, &2, message.clone());
     let fields: [TestGenFieldType<i32, String>; 3] = test.into();
     assert!(matches!(fields, [
                  TestGenFieldType::First(1),
