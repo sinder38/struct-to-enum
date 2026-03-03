@@ -67,7 +67,6 @@ impl DeriveFieldType {
         Ok(quote! {
             #enum_def
             #converter
-            #into_array
         })
     }
 

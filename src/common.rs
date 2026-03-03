@@ -62,7 +62,8 @@ pub fn get_meta_list(
     Ok(result)
 }
 
-/// Collect struct fields, skipping those marked `skip`. Returns `FieldInfo` for each included field.
+/// Collect struct fields, skipping marked `skip` record marked as `nested`
+// Returns `FieldInfo` for each included field.
 pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Result<Vec<FieldInfo>> {
     let mut result = Vec::new();
     for field in fields.iter() {
@@ -80,6 +81,8 @@ pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Resul
             .attrs
             .iter()
             .any(|attr| has_attr_with_value(attr, attr_names, "nested"));
+
+        //TODO: nested silently fails for FieldType, fix with `nested exension`
 
         let field_ident = field.ident.as_ref().unwrap().clone();
         let field_name = field_ident.to_string();
