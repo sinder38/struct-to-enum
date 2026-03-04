@@ -6,7 +6,7 @@ use syn::{DeriveInput, Ident};
 
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
-use crate::common::{FieldInfo, extract_type_ident, filter_fields, get_meta_list};
+use crate::common::{extract_type_ident, filter_fields, get_meta_list};
 
 #[inline]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
@@ -16,8 +16,22 @@ fn get_helper_macro_name(type_snake: &str) -> Ident {
     )
 }
 
-struct NestedFieldInfo {
-    helper_macro: Ident,
+/// A single field slot in declaration order
+enum FieldSlot {
+    /// One or more consecutive regular fields: (variant_ident, field_name)
+    Regular(Vec<(Ident, String)>),
+    /// A nested field - calls to the inner type's helper macro
+    Nested(Ident),
+}
+
+impl FieldSlot {
+    /// Render each (Variant, "name") as Variant => "name"
+    fn entries(pairs: &[(Ident, String)]) -> Vec<TokenStream2> {
+        pairs
+            .iter()
+            .map(|(variant, name)| quote! { #variant => #name })
+            .collect()
+    }
 }
 
 pub struct DeriveFieldName {
@@ -27,8 +41,8 @@ pub struct DeriveFieldName {
     generics: syn::Generics,
     derive_attrs: Vec<TokenStream2>,
     extra_attrs: Vec<TokenStream2>,
-    regular_variant_pairs: Vec<(Ident, String)>,
-    nested_fields: Vec<NestedFieldInfo>,
+    /// Fields in declaration order, grouped into regular runs and nested slots.
+    slots: Vec<FieldSlot>,
     type_snake: String,
     impl_generics_tokens: TokenStream2,
     from_lifetime: TokenStream2,
@@ -89,23 +103,23 @@ impl DeriveFieldName {
             ));
         }
 
-        let regular_fields: Vec<&FieldInfo> = fields.iter().filter(|f| !f.is_nested).collect();
-        let nested_raw: Vec<&FieldInfo> = fields.iter().filter(|f| f.is_nested).collect();
-
-        let regular_variant_pairs: Vec<(Ident, String)> = regular_fields
-            .iter()
-            .map(|f| (f.variant_ident.clone(), f.field_ident.to_string()))
-            .collect();
-
         let type_snake = ident.to_string().to_snake_case();
 
-        let mut nested_fields = Vec::new();
-        for f in &nested_raw {
-            let inner_type_ident = extract_type_ident(&f.field_ty)?;
-            let inner_snake = inner_type_ident.to_string().to_snake_case();
-            nested_fields.push(NestedFieldInfo {
-                helper_macro: get_helper_macro_name(&inner_snake),
-            });
+        // Build declaration-order slots: merge consecutive regular fields into one Regular slot.
+        let mut slots: Vec<FieldSlot> = Vec::new();
+        for f in &fields {
+            if f.is_nested {
+                let inner_type_ident = extract_type_ident(&f.field_ty)?;
+                let inner_snake = inner_type_ident.to_string().to_snake_case();
+                slots.push(FieldSlot::Nested(get_helper_macro_name(&inner_snake)));
+            } else {
+                let pair = (f.variant_ident.clone(), f.field_ident.to_string());
+                if let Some(FieldSlot::Regular(pairs)) = slots.last_mut() {
+                    pairs.push(pair);
+                } else {
+                    slots.push(FieldSlot::Regular(vec![pair]));
+                }
+            }
         }
 
         let (impl_generics, _, _) = generics.split_for_impl();
@@ -132,8 +146,7 @@ impl DeriveFieldName {
             generics,
             derive_attrs,
             extra_attrs,
-            regular_variant_pairs,
-            nested_fields,
+            slots,
             type_snake,
             impl_generics_tokens,
             from_lifetime,
@@ -141,84 +154,72 @@ impl DeriveFieldName {
     }
 
     pub fn expand(&self) -> syn::Result<TokenStream2> {
-        if self.nested_fields.is_empty() {
-            self.expand_simple()
-        } else {
+        let has_nested = self.slots.iter().any(|s| matches!(s, FieldSlot::Nested(_)));
+        if has_nested {
             self.expand_nested()
+        } else {
+            self.expand_simple()
         }
     }
 
-    fn helper_variant_entries(&self) -> Vec<TokenStream2> {
-        self.regular_variant_pairs
-            .iter()
-            .map(|(variant_ident, field_name)| {
-                quote! { #variant_ident => #field_name }
-            })
-            .collect()
-    }
-
     fn expand_simple(&self) -> syn::Result<TokenStream2> {
-        let Self {
-            vis,
-            ident,
-            enum_ident,
-            generics,
-            derive_attrs,
-            extra_attrs,
-            regular_variant_pairs,
-            impl_generics_tokens,
-            from_lifetime,
-            type_snake,
-            ..
-        } = self;
-
-        let (_impl_generics, ty_generics, _where_clause) = generics.split_for_impl();
-
-        let field_name_variants = regular_variant_pairs
+        // No nested fields — exactly one Regular slot.
+        let pairs = match &self.slots[..] {
+            [FieldSlot::Regular(p)] => p,
+            _ => unreachable!("expand_simple called with nested slots"),
+        };
+        let entries = FieldSlot::entries(pairs);
+        let variants: Vec<&Ident> = pairs.iter().map(|(v, _)| v).collect();
+        let constructs: Vec<TokenStream2> = variants
             .iter()
-            .map(|(variant_ident, _)| quote! { #variant_ident });
+            .map(|v| {
+                let e = &self.enum_ident;
+                quote! { #e::#v }
+            })
+            .collect();
+        let fields_count = pairs.len();
 
-        let field_name_constructs = regular_variant_pairs
-            .iter()
-            .map(|(variant_ident, _)| quote! { #enum_ident::#variant_ident });
+        let vis = &self.vis;
+        let ident = &self.ident;
+        let enum_ident = &self.enum_ident;
+        let derive_attrs = &self.derive_attrs;
+        let extra_attrs = &self.extra_attrs;
+        let impl_generics_tokens = &self.impl_generics_tokens;
+        let from_lifetime = &self.from_lifetime;
+        let (_impl_generics, ty_generics, _where_clause) = self.generics.split_for_impl();
+        let helper_macro_name = get_helper_macro_name(&self.type_snake);
 
-        let fields_count = regular_variant_pairs.len();
-
-        let helper_variant_entries = self.helper_variant_entries();
-        let helper_macro_name = get_helper_macro_name(type_snake);
+        let own_helper = quote! {
+            #[doc(hidden)]
+            #[macro_export]
+            macro_rules! #helper_macro_name {
+                ($callback:tt; $($acc:tt)*) => {
+                    $callback!{$($acc)* #(#entries,)*}
+                };
+            }
+        };
 
         Ok(quote! {
             #[derive(#(#derive_attrs),*)]
             #(#[#extra_attrs])*
             #vis enum #enum_ident {
-                #(#field_name_variants),*
+                #(#variants),*
             }
 
             impl #impl_generics_tokens From<& #from_lifetime #ident #ty_generics> for [#enum_ident; #fields_count] {
                 fn from(_source: & #from_lifetime #ident #ty_generics) -> Self {
-                    [#(#field_name_constructs),*]
+                    [#(#constructs),*]
                 }
             }
 
-            #[doc(hidden)]
-            #[macro_export]
-            macro_rules! #helper_macro_name {
-                ($callback:path; $($acc:tt)*) => {
-                    $callback!{$($acc)* #(#helper_variant_entries,)*}
-                };
-            }
+            #own_helper
+
         })
     }
 
     fn expand_nested(&self) -> syn::Result<TokenStream2> {
         let (_impl_generics, ty_generics, _where_clause) = self.generics.split_for_impl();
-
-        let helper_variant_entries = self.helper_variant_entries();
-
         let type_snake = &self.type_snake;
-        let nested_helper_macros: Vec<&Ident> =
-            self.nested_fields.iter().map(|n| &n.helper_macro).collect();
-        let num_nested = nested_helper_macros.len();
 
         let builder_macro_name = Ident::new(
             &format!("__{}_field_name_build", type_snake),
@@ -228,60 +229,101 @@ impl DeriveFieldName {
         let builder_macro =
             self.generate_field_name_builder_macro(&builder_macro_name, &ty_generics);
 
-        let mut chain_macros = Vec::new();
-        for (i, nested_mac) in nested_helper_macros.iter().enumerate().skip(1) {
-            let chain_name = Ident::new(
-                &format!("__{}_field_name_chain_{}", type_snake, i),
-                Span::call_site(),
-            );
-            let next_target = if i == num_nested - 1 {
-                builder_macro_name.clone()
-            } else {
-                Ident::new(
-                    &format!("__{}_field_name_chain_{}", type_snake, i + 1),
-                    Span::call_site(),
-                )
-            };
-            chain_macros.push(Self::generate_chain_macro(
-                &chain_name,
-                nested_mac,
-                &next_target,
-            ));
-        }
-
-        let first_target = if num_nested == 1 {
-            builder_macro_name.clone()
-        } else {
+        // Generate one step macro per slot in declaration order.
+        // Step i receives ($callback:tt; $($acc:tt)*) and then passes the updated
+        // accumulator to step i+1, or directly to $callback if it's on the last step
+        let num_slots = self.slots.len();
+        let step_name = |i: usize| {
             Ident::new(
-                &format!("__{}_field_name_chain_1", type_snake),
+                &format!("__{}_field_name_step_{}", type_snake, i),
                 Span::call_site(),
             )
         };
 
-        let first_nested_mac = nested_helper_macros[0];
+        let mut step_macros: Vec<TokenStream2> = Vec::new();
+        for (i, slot) in self.slots.iter().enumerate() {
+            let this_step = step_name(i);
+            let is_last = i == num_slots - 1;
 
-        let invocation = quote! {
-            #first_nested_mac!{#first_target; #(#helper_variant_entries,)*}
-        };
+            match slot {
+                FieldSlot::Regular(pairs) => {
+                    let entries = FieldSlot::entries(pairs);
+                    if is_last {
+                        step_macros.push(quote! {
+                            #[doc(hidden)]
+                            macro_rules! #this_step {
+                                ($callback:tt; $($acc:tt)*) => {
+                                    $callback!{$($acc)* #(#entries,)*}
+                                };
+                            }
+                        });
+                    } else {
+                        let next = step_name(i + 1);
+                        step_macros.push(quote! {
+                            #[doc(hidden)]
+                            macro_rules! #this_step {
+                                ($callback:tt; $($acc:tt)*) => {
+                                    #next!{$callback; $($acc)* #(#entries,)*}
+                                };
+                            }
+                        });
+                    }
+                }
+                FieldSlot::Nested(helper_mac) => {
+                    if is_last {
+                        // Last slot: call nested helper with $callback
+                        step_macros.push(quote! {
+                            #[doc(hidden)]
+                            macro_rules! #this_step {
+                                ($callback:tt; $($acc:tt)*) => {
+                                    #helper_mac!{$callback; $($acc)*}
+                                };
+                            }
+                        });
+                    } else {
+                        // Non-last: nested helper's callback is the next step,
+                        // which receives $callback as its first arg
+                        let next = step_name(i + 1);
+                        step_macros.push(quote! {
+                            #[doc(hidden)]
+                            macro_rules! #this_step {
+                                ($callback:tt; $($acc:tt)*) => {
+                                    #helper_mac!{#next; $callback; $($acc)*}
+                                };
+                            }
+                        });
+                    }
+                }
+            }
+        }
 
+        // Build: step 0 with the builder as callback
+        let step_0 = step_name(0);
+        let invocation = quote! { #step_0!{#builder_macro_name;} };
+
+        // Finnaly add own helper: when this type is nested in a grandparent,
+        // just start the same step chain but with the grandparent's callback forwarded as tt.
         let helper_macro_name = get_helper_macro_name(type_snake);
-
-        let own_helper = self.generate_own_helper_with_nested(
-            &helper_macro_name,
-            &helper_variant_entries,
-            &nested_helper_macros,
-        );
+        let own_helper = quote! {
+            #[doc(hidden)]
+            #[macro_export]
+            macro_rules! #helper_macro_name {
+                ($callback:tt; $($acc:tt)*) => {
+                    #step_0!{$callback; $($acc)*}
+                };
+            }
+        };
 
         Ok(quote! {
             #builder_macro
-            #(#chain_macros)*
+            #(#step_macros)*
             #own_helper
             #invocation
         })
     }
 
-    /// Emit a `macro_rules!` that receives all `Variant => "field_name"` pairs (accumulated
-    /// through the callback chain)
+    /// Emit the terminal macro that, once it has the full flat list of
+    /// `Variant => "field_name"` pairs, generates the enum and `From` impl.
     fn generate_field_name_builder_macro(
         &self,
         macro_name: &Ident,
@@ -310,105 +352,6 @@ impl DeriveFieldName {
                         }
                     }
                 };
-            }
-        }
-    }
-
-    /// Emit an intermediary macro that forwards accumulated variants to the next nested type's helper.
-    fn generate_chain_macro(
-        chain_name: &Ident,
-        nested_mac: &Ident,
-        next_target: &Ident,
-    ) -> TokenStream2 {
-        quote! {
-            #[doc(hidden)]
-            macro_rules! #chain_name {
-                ($($acc:tt)*) => {
-                    #nested_mac!{#next_target; $($acc)*}
-                };
-            }
-        }
-    }
-
-    /// Emit this type's exported helper macro.
-    fn generate_own_helper_with_nested(
-        &self,
-        helper_macro_name: &Ident,
-        helper_variant_entries: &[TokenStream2],
-        nested_helper_macros: &[&Ident],
-    ) -> TokenStream2 {
-        let num_nested = nested_helper_macros.len();
-        let type_snake = &self.type_snake;
-
-        if num_nested == 0 {
-            quote! {
-                #[doc(hidden)]
-                #[macro_export]
-                macro_rules! #helper_macro_name {
-                    ($callback:path; $($acc:tt)*) => {
-                        $callback!{$($acc)* #(#helper_variant_entries,)*}
-                    };
-                }
-            }
-        } else if num_nested == 1 {
-            let nested_mac = nested_helper_macros[0];
-            quote! {
-                #[doc(hidden)]
-                #[macro_export]
-                macro_rules! #helper_macro_name {
-                    ($callback:path; $($acc:tt)*) => {
-                        #nested_mac!{$callback; $($acc)* #(#helper_variant_entries,)*}
-                    };
-                }
-            }
-        } else {
-            let mut fwd_macros = Vec::new();
-            for (i, nested_mac_i) in nested_helper_macros.iter().enumerate().skip(1) {
-                let fwd_name = Ident::new(
-                    &format!("__{}_field_name_helper_fwd_{}", type_snake, i),
-                    Span::call_site(),
-                );
-                if i == num_nested - 1 {
-                    fwd_macros.push(quote! {
-                        #[doc(hidden)]
-                        macro_rules! #fwd_name {
-                            ($callback:path; $($acc:tt)*) => {
-                                #nested_mac_i!{$callback; $($acc)*}
-                            };
-                        }
-                    });
-                } else {
-                    let next_fwd = Ident::new(
-                        &format!("__{}_field_name_helper_fwd_{}", type_snake, i + 1),
-                        Span::call_site(),
-                    );
-                    fwd_macros.push(quote! {
-                        #[doc(hidden)]
-                        macro_rules! #fwd_name {
-                            ($callback:path; $($acc:tt)*) => {
-                                #nested_mac_i!{#next_fwd; $callback; $($acc)*}
-                            };
-                        }
-                    });
-                }
-            }
-
-            let first_fwd = Ident::new(
-                &format!("__{}_field_name_helper_fwd_1", type_snake),
-                Span::call_site(),
-            );
-            let first_nested = nested_helper_macros[0];
-
-            quote! {
-                #(#fwd_macros)*
-
-                #[doc(hidden)]
-                #[macro_export]
-                macro_rules! #helper_macro_name {
-                    ($callback:path; $($acc:tt)*) => {
-                        #first_nested!{#first_fwd; $callback; $($acc)* #(#helper_variant_entries,)*}
-                    };
-                }
             }
         }
     }
