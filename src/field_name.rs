@@ -8,6 +8,14 @@ const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
 use crate::common::{FieldInfo, extract_type_ident, filter_fields, get_meta_list};
 
+#[inline]
+fn get_helper_macro_name(type_snake: &str) -> Ident {
+    Ident::new(
+        &format!("__{}_field_name_variants", type_snake),
+        Span::call_site(),
+    )
+}
+
 struct NestedFieldInfo {
     helper_macro: Ident,
 }
@@ -96,10 +104,7 @@ impl DeriveFieldName {
             let inner_type_ident = extract_type_ident(&f.field_ty)?;
             let inner_snake = inner_type_ident.to_string().to_snake_case();
             nested_fields.push(NestedFieldInfo {
-                helper_macro: Ident::new(
-                    &format!("__{}_field_name_variants", inner_snake),
-                    Span::call_site(),
-                ),
+                helper_macro: get_helper_macro_name(&inner_snake),
             });
         }
 
@@ -169,8 +174,6 @@ impl DeriveFieldName {
 
         let (_impl_generics, ty_generics, _where_clause) = generics.split_for_impl();
 
-        let helper_variant_entries = self.helper_variant_entries();
-
         let field_name_variants = regular_variant_pairs
             .iter()
             .map(|(variant_ident, _)| quote! { #variant_ident });
@@ -179,14 +182,10 @@ impl DeriveFieldName {
             .iter()
             .map(|(variant_ident, _)| quote! { #enum_ident::#variant_ident });
 
-        let from_field_name_constructs = field_name_constructs.clone();
-
         let fields_count = regular_variant_pairs.len();
 
-        let helper_macro_name = Ident::new(
-            &format!("__{}_field_name_variants", type_snake),
-            Span::call_site(),
-        );
+        let helper_variant_entries = self.helper_variant_entries();
+        let helper_macro_name = get_helper_macro_name(type_snake);
 
         Ok(quote! {
             #[derive(#(#derive_attrs),*)]
@@ -197,7 +196,7 @@ impl DeriveFieldName {
 
             impl #impl_generics_tokens From<& #from_lifetime #ident #ty_generics> for [#enum_ident; #fields_count] {
                 fn from(_source: & #from_lifetime #ident #ty_generics) -> Self {
-                    [#(#from_field_name_constructs),*]
+                    [#(#field_name_constructs),*]
                 }
             }
 
@@ -265,10 +264,7 @@ impl DeriveFieldName {
             #first_nested_mac!{#first_target; #(#helper_variant_entries,)*}
         };
 
-        let helper_macro_name = Ident::new(
-            &format!("__{}_field_name_variants", type_snake),
-            Span::call_site(),
-        );
+        let helper_macro_name = get_helper_macro_name(type_snake);
 
         let own_helper = self.generate_own_helper_with_nested(
             &helper_macro_name,

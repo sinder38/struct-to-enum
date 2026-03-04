@@ -4,10 +4,15 @@ use syn::{Attribute, Fields, Ident, Meta, Type};
 
 use heck::ToUpperCamelCase;
 
+#[derive(Clone)]
 pub struct FieldInfo {
+    /// Original struct field ident
     pub field_ident: Ident,
+    /// Original struct field type
     pub field_ty: Type,
+    /// Related field ident for generated enum
     pub variant_ident: Ident,
+    /// Has is_nested attribute
     pub is_nested: bool,
 }
 
@@ -85,6 +90,8 @@ pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Resul
         //TODO: nested silently fails for FieldType, fix with `nested exension`
 
         let field_ident = field.ident.as_ref().unwrap().clone();
+
+        // TODO: allow changing Enum varint ident generation
         let field_name = field_ident.to_string();
         let variant_ident = Ident::new(&field_name.to_upper_camel_case(), Span::call_site());
 
