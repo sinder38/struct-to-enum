@@ -21,12 +21,12 @@ use syn::DeriveInput;
 /// the field name in `PascalCase`. The variants are ordered by field declaration order.
 ///
 /// **No derives are added by default.** Add with `#[stem_type_derive(...)]`](#attributes).
-/// ** Doesn't support nesting currently**
 ///
 /// # Attributes
 /// | Attribute | Target | Description |
 /// |-----------|--------|-------------|
 /// | `#[stem_type(skip)]` | field | Exclude this field from the generated enum. |
+/// | `#[stem_type(nested)]` | field | Flatten the nested struct's `FieldType` variants into this enum. |
 /// | `#[stem_type_derive(...)]` | struct | Derives for the generated enum. None are added by default. |
 /// | `#[stem_type_attr(...)]` | struct | Extra attributes applied verbatim to the generated enum. |
 ///

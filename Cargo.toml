@@ -12,7 +12,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/sinder38/struct-to-enum"
 
 [dependencies]
-quote = "1.0.44"
+quote = "1.0.45"
 heck = "0.5.0"
 syn = "2.0.117"
 proc-macro2 = "1.0.106"

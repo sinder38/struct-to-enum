@@ -156,3 +156,129 @@ fn derive_macro_arguments() {
         ["FIRST", "SECOND-FIELD"]
     );
 }
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct DeepInner {
+    z: f64,
+}
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct DeepMiddle {
+    m: i32,
+    #[stem_type(nested)]
+    deep: DeepInner,
+}
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct DeepOuter {
+    top: bool,
+    #[stem_type(nested)]
+    middle: DeepMiddle,
+}
+
+/// Single level of nesting
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct InnerSimple {
+    x: i32,
+    y: i32,
+}
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct OuterSimple {
+    a: bool,
+    #[stem_type(nested)]
+    inner: InnerSimple,
+}
+
+/// Two nested fields in the same struct (with distinct field names to avoid variant conflicts)
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct LeftInner {
+    lx: i32,
+    ly: i32,
+}
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct RightInner {
+    rx: i32,
+    ry: i32,
+}
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, Clone, PartialEq)]
+struct TwoNested {
+    #[stem_type(skip)]
+    skippa: String,
+    own: u8,
+    #[stem_type(nested)]
+    left: LeftInner,
+    #[stem_type(nested)]
+    right: RightInner,
+}
+
+#[test]
+fn nested_field_type_variants() {
+    // Deep 2-level nesting: DeepOuter { top, middle: DeepMiddle { m, deep: DeepInner { z } } }
+    // DeepOuterFieldType should have: Top(bool), M(i32), Z(f64)
+    let _top = DeepOuterFieldType::Top(true);
+    let _m = DeepOuterFieldType::M(42);
+    let _z = DeepOuterFieldType::Z(3.14);
+    let v: DeepOuterFieldType = DeepOuterFieldType::Top(false);
+    match v {
+        DeepOuterFieldType::Top(_) => (),
+        DeepOuterFieldType::M(_) => (),
+        DeepOuterFieldType::Z(_) => (),
+    }
+}
+
+#[test]
+fn nested_single_level_into() {
+    let outer = OuterSimple {
+        a: true,
+        inner: InnerSimple { x: 1, y: 2 },
+    };
+    // OuterSimpleFieldType has: A(bool), X(i32), Y(i32)  — 3 variants
+    let fields: [OuterSimpleFieldType; 3] = outer.into();
+    assert_eq!(fields[0], OuterSimpleFieldType::A(true));
+    assert_eq!(fields[1], OuterSimpleFieldType::X(1));
+    assert_eq!(fields[2], OuterSimpleFieldType::Y(2));
+}
+
+#[test]
+fn nested_two_levels_into() {
+    let outer = DeepOuter {
+        top: true,
+        middle: DeepMiddle {
+            m: 7,
+            deep: DeepInner { z: 2.5 },
+        },
+    };
+    // DeepOuterFieldType has: Top(bool), M(i32), Z(f64)  — 3 variants
+    let fields: [DeepOuterFieldType; 3] = outer.into();
+    assert_eq!(fields[0], DeepOuterFieldType::Top(true));
+    assert_eq!(fields[1], DeepOuterFieldType::M(7));
+    assert_eq!(fields[2], DeepOuterFieldType::Z(2.5));
+}
+
+#[test]
+fn nested_two_nested_fields_into() {
+    // TwoNestedFieldType has: Own(u8), Lx(i32), Ly(i32), Rx(i32), Ry(i32)
+    let s = TwoNested {
+        own: 99,
+        left: LeftInner { lx: 1, ly: 2 },
+        right: RightInner { rx: 3, ry: 4 },
+        skippa: "test".to_string(),
+    };
+    let fields: [TwoNestedFieldType; 5] = s.into();
+    assert_eq!(fields[0], TwoNestedFieldType::Own(99));
+    assert_eq!(fields[1], TwoNestedFieldType::Lx(1));
+    assert_eq!(fields[2], TwoNestedFieldType::Ly(2));
+    assert_eq!(fields[3], TwoNestedFieldType::Rx(3));
+    assert_eq!(fields[4], TwoNestedFieldType::Ry(4));
+}
