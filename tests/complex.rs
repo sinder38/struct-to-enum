@@ -741,15 +741,15 @@ fn nested_field_name_three_levels() {
     };
 
     let names: [PlaceFieldName; 5] = (&p).into();
-    // Non-nested own fields first (Title, Rank), then nested variants appended (Label, Lat, Lon)
+    // Declaration order: title, location→(label, coords→(lat, lon)), rank
     assert_eq!(
         names,
         [
             PlaceFieldName::Title,
-            PlaceFieldName::Rank,
             PlaceFieldName::Label,
             PlaceFieldName::Lat,
             PlaceFieldName::Lon,
+            PlaceFieldName::Rank,
         ]
     );
 }
@@ -1052,7 +1052,7 @@ fn combined_nested_field_type_and_name() {
     };
 
     let fields: [DocumentFieldType; 4] = doc.into();
-    // Own non-nested fields first: Title, Content; then nested (Meta → Version, Author)
+    // Own non-nested fields first (Title, Content), then nested (Version, Author)
     assert_eq!(fields[0], DocumentFieldType::Title("Hello".to_string()));
     assert_eq!(fields[1], DocumentFieldType::Content("World".to_string()));
     assert_eq!(fields[2], DocumentFieldType::Version(2));
@@ -1067,13 +1067,14 @@ fn combined_nested_field_type_and_name() {
         content: "World".to_string(),
     };
     let names: [DocumentFieldName; 4] = (&doc2).into();
+    // Declaration order: title, meta→(version, author), content
     assert_eq!(
         names,
         [
             DocumentFieldName::Title,
-            DocumentFieldName::Content,
             DocumentFieldName::Version,
             DocumentFieldName::Author,
+            DocumentFieldName::Content,
         ]
     );
 }
@@ -1384,14 +1385,14 @@ fn mixed_skip_and_nested_field_name() {
         d: 4,
     };
     let names: [MixedFieldName; 4] = (&s).into();
-    // Own non-nested fields first (A, D in declaration order), then nested (P, Q)
+    // Declaration order: a, (b skipped), inner→(p, q), (c skipped), d
     assert_eq!(
         names,
         [
             MixedFieldName::A,
-            MixedFieldName::D,
             MixedFieldName::P,
             MixedFieldName::Q,
+            MixedFieldName::D,
         ]
     );
 }
