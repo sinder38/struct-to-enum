@@ -297,46 +297,24 @@ impl DeriveFieldType {
         let ty = &self.ident;
         let (impl_generics, _, where_clause) = self.generics.split_for_impl();
 
-        if self.generics.params.is_empty() {
-            quote! {
-                #[doc(hidden)]
-                macro_rules! #macro_name {
-                    ($($variant:ident ( $vty:ty ) { $($path:tt)* },)*) => {
-                        #[derive(#(#derive),*)]
-                        #(#[#attrs])*
-                        #vis enum #enum_ty {
-                            $($variant($vty)),*
-                        }
+        quote! {
+            #[doc(hidden)]
+            macro_rules! #macro_name {
+                ($($variant:ident ( $vty:ty ) { $($path:tt)* },)*) => {
+                    #[derive(#(#derive),*)]
+                    #(#[#attrs])*
+                    #vis enum #enum_ty #ty_generics {
+                        $($variant($vty)),*
+                    }
 
-                        impl From<#ty> for [#enum_ty; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }] {
-                            fn from(source: #ty) -> Self {
-                                [$(#enum_ty::$variant(source $($path)*)),*]
-                            }
+                    impl #impl_generics From<#ty #ty_generics> for [#enum_ty #ty_generics; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }]
+                        #where_clause
+                    {
+                        fn from(source: #ty #ty_generics) -> Self {
+                            [$(#enum_ty::$variant(source $($path)*)),*]
                         }
-                    };
-                }
-            }
-        } else {
-            quote! {
-                #[doc(hidden)]
-                macro_rules! #macro_name {
-                    ($($variant:ident ( $vty:ty ) { $($path:tt)* },)*) => {
-                        #[derive(#(#derive),*)]
-                        #(#[#attrs])*
-                        #vis enum #enum_ty #ty_generics {
-                            $($variant($vty)),*
-                        }
-
-                        impl #impl_generics Into<[#enum_ty #ty_generics; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }]> for #ty #ty_generics
-                            #where_clause
-                        {
-                            fn into(self) -> [#enum_ty #ty_generics; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }] {
-                                let source = self;
-                                [$(#enum_ty::$variant(source $($path)*)),*]
-                            }
-                        }
-                    };
-                }
+                    }
+                };
             }
         }
     }
@@ -396,24 +374,13 @@ impl DeriveFieldType {
         });
         let destructuring = quote! { #ident { #(#field_idents,)* .. } };
 
-        if generics.params.is_empty() {
-            quote! {
-                impl From<#ident> for [#enum_ident; #fields_count] {
-                    fn from(source: #ident) -> Self {
-                        let #destructuring = source;
-                        [#(#constructs),*]
-                    }
-                }
-            }
-        } else {
-            quote! {
-                impl #impl_generics Into<[#enum_ident #ty_generics; #fields_count]> for #ident #ty_generics
-                    #where_clause
-                {
-                    fn into(self) -> [#enum_ident #ty_generics; #fields_count] {
-                        let #destructuring = self;
-                        [#(#constructs),*]
-                    }
+        quote! {
+            impl #impl_generics From<#ident #ty_generics> for [#enum_ident #ty_generics; #fields_count]
+                #where_clause
+            {
+                fn from(source: #ident #ty_generics) -> Self {
+                    let #destructuring = source;
+                    [#(#constructs),*]
                 }
             }
         }

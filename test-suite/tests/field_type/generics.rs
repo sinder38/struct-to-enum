@@ -88,3 +88,41 @@ fn multi_generic_field_type_from() {
     assert_eq!(fields[1], MultiGenericFieldType::Beta(true));
     assert_eq!(fields[2], MultiGenericFieldType::Gamma(&c_val));
 }
+
+#[test]
+fn generic_field_type_from_and_into_both_work() {
+    let message = "test".to_string();
+    let t1 = TestGen {
+        first: 1i32,
+        second_field: Some(&message),
+        third: &2i32,
+        fourth: message.clone(),
+    };
+    let t2 = TestGen {
+        first: 1i32,
+        second_field: Some(&message),
+        third: &2i32,
+        fourth: message.clone(),
+    };
+    let by_from = <[TestGenFieldType<i32, String>; 2]>::from(t1);
+    let by_into: [TestGenFieldType<i32, String>; 2] = t2.into();
+    assert_eq!(by_from[0], by_into[0]);
+    assert_eq!(by_from[1], by_into[1]);
+}
+
+#[test]
+fn multi_generic_field_type_from_explicit() {
+    let c_val = "world".to_string();
+    let hidden_val = 0i32;
+    let s = MultiGeneric {
+        alpha: 42i32,
+        beta: true,
+        gamma: &c_val,
+        hidden: &hidden_val,
+    };
+    let fields = <[MultiGenericFieldType<i32, bool, String>; 3]>::from(s);
+    assert_eq!(fields[0], MultiGenericFieldType::Alpha(42i32));
+    assert_eq!(fields[1], MultiGenericFieldType::Beta(true));
+    assert_eq!(fields[2], MultiGenericFieldType::Gamma(&c_val));
+}
+ w
