@@ -4,7 +4,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldType;
 
-// --- Single level of nesting ---
+// Single level of nesting
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -21,7 +21,7 @@ struct OuterSimple {
     inner: InnerSimple,
 }
 
-// --- Single level (RGB color in Pixel) ---
+// Single level (RGB color in Pixel)
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -40,7 +40,7 @@ struct Pixel {
     color: ColorInner,
 }
 
-// --- Two levels deep ---
+// Two levels deep
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -64,7 +64,7 @@ struct DeepOuter {
     middle: DeepMiddle,
 }
 
-// --- Three levels deep (Entity → Transform → Vec3) ---
+// Three levels deep (Entity → Transform → Vec3)
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -91,7 +91,7 @@ struct Entity {
     active: bool,
 }
 
-// --- Two sibling nested fields with distinct field names ---
+// Two sibling nested fields with distinct field names
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -119,7 +119,7 @@ struct TwoNested {
     right: RightInner,
 }
 
-// --- Two sibling nested with skip on outer (Stats) ---
+// Two sibling nested with skip on outer (Stats)
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -147,7 +147,7 @@ struct Stats {
     range_y: YRange,
 }
 
-// --- Mixed skip and nested in same struct ---
+// Mixed skip and nested in same struct
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -171,22 +171,25 @@ struct MixedType {
 
 use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldType};
 
-// --- Complex nesting ---
+// Complex nesting
 mod complex_nesting {
     use struct_to_enum::FieldType;
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct AB {
         pub a: u32,
         pub b: u32,
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct E {
         pub e: u32,
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct CDEF {
         pub c: i32,
         pub d: i32,
@@ -196,6 +199,7 @@ mod complex_nesting {
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct JKL {
         pub j: i32,
         pub k: i32,
@@ -203,6 +207,7 @@ mod complex_nesting {
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct GHIJKL {
         pub g: i32,
         pub h: i32,
@@ -212,15 +217,18 @@ mod complex_nesting {
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct P {
         pub p: i32,
     }
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct O {
         pub o: i32,
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct OP {
         #[stem_type(nested)]
         pub o: O,
@@ -229,6 +237,7 @@ mod complex_nesting {
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct GHIJKLMNOP {
         #[stem_type(nested)]
         pub ghijkl: GHIJKL,
@@ -239,6 +248,7 @@ mod complex_nesting {
     }
 
     #[derive(FieldType, Default)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
     pub struct ABCDEFGHIJKLMNOP {
         #[stem_type(nested)]
         pub ab: AB,
@@ -250,31 +260,30 @@ mod complex_nesting {
 }
 
 #[test]
-fn complex_fields_field_name() {
+fn complex_fields_field_type() {
     use ABCDEFGHIJKLMNOPFieldType as AlpName;
     let a = ABCDEFGHIJKLMNOP::default();
-    let letters: [AlpName; 16] = (&a).into();
-    //TODO: enable for order testing
+    let letters: [AlpName; 16] = a.into();
 
     assert_eq!(
         letters,
         [
-            AlpName::A,
-            AlpName::B,
-            AlpName::C,
-            AlpName::D,
-            AlpName::E,
-            AlpName::F,
-            AlpName::G,
-            AlpName::H,
-            AlpName::I,
-            AlpName::J,
-            AlpName::K,
-            AlpName::L,
-            AlpName::M,
-            AlpName::N,
-            AlpName::O,
-            AlpName::P,
+            AlpName::A(0),
+            AlpName::B(0),
+            AlpName::C(0),
+            AlpName::D(0),
+            AlpName::E(0),
+            AlpName::F(0),
+            AlpName::G(0),
+            AlpName::H(0),
+            AlpName::I(0),
+            AlpName::J(0),
+            AlpName::K(0),
+            AlpName::L(0),
+            AlpName::M(0),
+            AlpName::N(0),
+            AlpName::O(0),
+            AlpName::P(0),
         ]
     )
 }

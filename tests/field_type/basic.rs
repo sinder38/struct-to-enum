@@ -4,7 +4,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldType;
 
-// --- Simple struct: skip both syntaxes ---
+// Simple struct: skip both syntaxes
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -17,7 +17,7 @@ struct Test {
     fourth: bool,
 }
 
-// --- Additional derives forwarded ---
+// Additional derives forwarded
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -26,7 +26,7 @@ struct TestTypesDerive {
     second: bool,
 }
 
-// --- Single-field struct ---
+// Single-field struct
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -34,7 +34,7 @@ struct SingleField {
     only: i32,
 }
 
-// --- All-but-one skipped ---
+// All-but-one skipped
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -48,7 +48,7 @@ struct AlmostAllSkipped {
     survivor: String,
 }
 
-// --- Both skip syntaxes together ---
+// Both skip syntaxes together
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -62,7 +62,7 @@ struct SkipSyntaxTest {
     keep_c: i32,
 }
 
-// --- Large struct: PascalCase conversion and field order ---
+// Large struct: PascalCase conversion and field order
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -79,7 +79,7 @@ struct BigStruct {
     field_ten: f64,
 }
 
-// --- Exhaustiveness ---
+// Exhaustiveness
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -99,7 +99,7 @@ fn match_field_type(v: ExhaustStructFieldType) -> &'static str {
     }
 }
 
-// --- Static str field type ---
+// Static str field type
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -107,8 +107,6 @@ struct Pair {
     first: i32,
     second: &'static str,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn full_field_type_variants() {

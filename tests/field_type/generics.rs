@@ -4,7 +4,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldType;
 
-// --- Generic struct with lifetime ---
+// Generic struct with lifetime
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -20,7 +20,7 @@ where
     fourth: U,
 }
 
-// --- Three type params + lifetime ---
+// Three type params + lifetime
 
 mod generics_mod {
     use struct_to_enum::FieldType;
@@ -37,8 +37,6 @@ mod generics_mod {
 }
 
 use generics_mod::{MultiGeneric, MultiGenericFieldType};
-
-// ----------------------------------------------------------------
 
 #[test]
 fn full_generic_field_type_variants() {

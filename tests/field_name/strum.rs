@@ -7,7 +7,7 @@ extern crate strum_macros;
 use struct_to_enum::FieldName;
 use strum_macros::EnumString;
 
-// --- EnumString via stem_name_derive ---
+// EnumString via stem_name_derive
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq, EnumString)]
@@ -17,7 +17,7 @@ struct TestDeriveArguments {
     second_field: bool,
 }
 
-// --- EnumString + ascii_case_insensitive on a larger struct ---
+// EnumString + ascii_case_insensitive on a larger struct
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq, EnumString)]
@@ -27,7 +27,7 @@ struct NameAttrTest {
     another_field: bool,
 }
 
-// --- Combined with FieldType strum on same struct (FieldName side only here) ---
+// Combined with FieldType strum on same struct (FieldName side only here)
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq, EnumString)]
@@ -39,8 +39,6 @@ struct StrumCombinedName {
     internal_token: String,
     is_active: bool,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn field_name_fromstr_case_insensitive() {

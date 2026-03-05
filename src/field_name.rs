@@ -16,20 +16,30 @@ fn get_helper_macro_name(type_snake: &str) -> Ident {
     )
 }
 
+struct FieldNamePair {
+    variant_ident: Ident,
+    field_name: String,
+}
+
 /// A single field slot in declaration order
 enum FieldSlot {
     /// One or more consecutive regular fields: (variant_ident, field_name)
-    Regular(Vec<(Ident, String)>),
+    Regular(Vec<FieldNamePair>),
     /// A nested field - calls to the inner type's helper macro
     Nested(Ident),
 }
 
 impl FieldSlot {
     /// Render each (Variant, "name") as Variant => "name"
-    fn entries(pairs: &[(Ident, String)]) -> Vec<TokenStream2> {
+    fn entries(pairs: &[FieldNamePair]) -> Vec<TokenStream2> {
         pairs
             .iter()
-            .map(|(variant, name)| quote! { #variant => #name })
+            .map(
+                |FieldNamePair {
+                     variant_ident,
+                     field_name,
+                 }| quote! { #variant_ident => #field_name },
+            )
             .collect()
     }
 }
@@ -113,7 +123,10 @@ impl DeriveFieldName {
                 let inner_snake = inner_type_ident.to_string().to_snake_case();
                 slots.push(FieldSlot::Nested(get_helper_macro_name(&inner_snake)));
             } else {
-                let pair = (f.variant_ident.clone(), f.field_ident.to_string());
+                let pair = FieldNamePair {
+                    variant_ident: f.variant_ident.to_owned(),
+                    field_name: f.field_ident.to_string(),
+                };
                 if let Some(FieldSlot::Regular(pairs)) = slots.last_mut() {
                     pairs.push(pair);
                 } else {
@@ -162,14 +175,28 @@ impl DeriveFieldName {
         }
     }
 
-    fn expand_simple(&self) -> syn::Result<TokenStream2> {
-        // No nested fields — exactly one Regular slot.
-        let pairs = match &self.slots[..] {
+    fn get_fields_for_simple(&self) -> &Vec<FieldNamePair> {
+        //PERF: this function is called several times instead of once
+        debug_assert_eq!(self.slots.len(), 1);
+        match &self.slots[..] {
             [FieldSlot::Regular(p)] => p,
             _ => unreachable!("expand_simple called with nested slots"),
-        };
+        }
+    }
+
+    fn expand_simple(&self) -> syn::Result<TokenStream2> {
+        // No nested fields-  exactly one Regular slot.
+        let pairs = self.get_fields_for_simple();
         let entries = FieldSlot::entries(pairs);
-        let variants: Vec<&Ident> = pairs.iter().map(|(v, _)| v).collect();
+        let variants: Vec<&Ident> = pairs
+            .iter()
+            .map(
+                |FieldNamePair {
+                     variant_ident,
+                     field_name: _,
+                 }| variant_ident,
+            )
+            .collect();
         let constructs: Vec<TokenStream2> = variants
             .iter()
             .map(|v| {
@@ -206,8 +233,8 @@ impl DeriveFieldName {
                 #(#variants),*
             }
 
-            impl #impl_generics_tokens From<& #from_lifetime #ident #ty_generics> for [#enum_ident; #fields_count] {
-                fn from(_source: & #from_lifetime #ident #ty_generics) -> Self {
+            impl #impl_generics_tokens From<& #ident #ty_generics> for [#enum_ident; #fields_count] {
+                fn from(_source: &  #ident #ty_generics) -> Self {
                     [#(#constructs),*]
                 }
             }

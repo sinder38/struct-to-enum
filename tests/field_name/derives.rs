@@ -4,7 +4,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldName;
 
-// --- Default derives: Copy, Clone, PartialEq, Eq, Debug are always present ---
+// Default derives: Copy, Clone, PartialEq, Eq, Debug are always present
 
 #[derive(FieldName)]
 struct DefaultDerives {
@@ -12,7 +12,7 @@ struct DefaultDerives {
     beta: String,
 }
 
-// --- Custom derives forwarded via stem_name_derive ---
+// Custom derives forwarded via stem_name_derive
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
@@ -21,7 +21,7 @@ struct WithHash {
     value: i32,
 }
 
-// --- Short alias prefix (ste_) ---
+// Short alias prefix (ste_)
 
 #[derive(FieldName)]
 #[ste_name_derive(Debug, Clone, PartialEq)]
@@ -29,8 +29,6 @@ struct AliasDerive {
     foo: i32,
     bar: String,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn field_name_default_derives() {

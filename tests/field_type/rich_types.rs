@@ -5,7 +5,7 @@ extern crate struct_to_enum;
 use std::collections::HashMap;
 use struct_to_enum::FieldType;
 
-// --- Rich field types: Vec, HashMap, Box, Result, tuples, arrays, nested Option ---
+// Rich field types: Vec, HashMap, Box, Result, tuples, arrays, nested Option
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -20,7 +20,7 @@ struct RichTypes {
     result_field: Result<i32, String>,
 }
 
-// --- Nested Option ---
+// Nested Option
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -31,7 +31,7 @@ struct OptionalFields {
     nested_opt: Option<Option<bool>>,
 }
 
-// --- FieldName counterpart for rich types (validates PascalCase conversion) ---
+// FieldName counterpart for rich types (validates PascalCase conversion)
 
 use struct_to_enum::FieldName;
 
@@ -47,8 +47,6 @@ struct RichTypesNames {
     maybe: Option<Vec<u8>>,
     result_field: Result<i32, String>,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn rich_field_types_variants() {

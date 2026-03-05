@@ -4,7 +4,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldName;
 
-// --- Simple struct: skip both syntaxes ---
+// Simple struct: skip both syntaxes
 
 #[derive(FieldName)]
 struct Test {
@@ -16,7 +16,7 @@ struct Test {
     fourth: bool,
 }
 
-// --- Additional derives forwarded ---
+// Additional derives forwarded
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -32,7 +32,7 @@ struct TestNameDerive {
     second: bool,
 }
 
-// --- Single-field struct ---
+// Single-field struct
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -40,7 +40,7 @@ struct SingleField {
     only: i32,
 }
 
-// --- All-but-one skipped ---
+// All-but-one skipped
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -54,7 +54,7 @@ struct AlmostAllSkipped {
     survivor: String,
 }
 
-// --- Both skip syntaxes together ---
+// Both skip syntaxes together
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -68,7 +68,7 @@ struct SkipSyntaxTest {
     keep_c: i32,
 }
 
-// --- Large struct: PascalCase conversion and field order ---
+// Large struct: PascalCase conversion and field order
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -85,7 +85,7 @@ struct BigStruct {
     field_ten: f64,
 }
 
-// --- Exhaustiveness ---
+// Exhaustiveness
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -105,7 +105,7 @@ fn match_field_name(v: ExhaustStructFieldName) -> &'static str {
     }
 }
 
-// --- Struct is not consumed when converting to FieldName ---
+// Struct is not consumed when converting to FieldName
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -113,8 +113,6 @@ struct Reusable {
     a: i32,
     b: i32,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn full_field_name_variants() {
@@ -201,7 +199,7 @@ fn almost_all_skipped() {
         c: 0,
         survivor: String::new(),
     })
-    .into();
+        .into();
     assert_eq!(names[0], AlmostAllSkippedFieldName::Survivor);
 }
 

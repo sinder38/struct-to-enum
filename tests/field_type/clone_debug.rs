@@ -4,7 +4,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldType;
 
-// --- Clone semantics for heap types ---
+// Clone semantics for heap types
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -13,7 +13,7 @@ struct CloneCheck {
     data: Vec<u8>,
 }
 
-// --- Debug formatting ---
+// Debug formatting
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -21,8 +21,6 @@ struct DebugCheck {
     number: i64,
     text: String,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn field_type_clone_heap_types() {

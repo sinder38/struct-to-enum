@@ -4,7 +4,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldName;
 
-// --- Single level of nesting ---
+// Single level of nesting
 
 mod single_level {
     use struct_to_enum::FieldName;
@@ -25,7 +25,7 @@ mod single_level {
 
 use single_level::{Inner as SingleInner, Outer as SingleOuter, OuterFieldName};
 
-// --- Single level (real-world: Address in Person) ---
+// Single level (real-world: Address in Person)
 
 mod address_mod {
     use struct_to_enum::FieldName;
@@ -49,7 +49,7 @@ mod address_mod {
 
 use address_mod::{Address, Person, PersonFieldName};
 
-// --- Two levels deep ---
+// Two levels deep
 
 #[derive(FieldName)]
 struct DeepInner {
@@ -70,7 +70,7 @@ struct DeepOuter {
     middle: DeepMiddle,
 }
 
-// --- Three levels (Place → Location → Coordinates) ---
+// Three levels (Place → Location → Coordinates)
 
 mod deep_name_mod {
     use struct_to_enum::FieldName;
@@ -99,7 +99,7 @@ mod deep_name_mod {
 
 use deep_name_mod::{Coordinates, Location, Place, PlaceFieldName};
 
-// --- Two sibling nested fields in same struct ---
+// Two sibling nested fields in same struct
 
 mod two_nested_mod {
     use struct_to_enum::FieldName;
@@ -128,7 +128,7 @@ mod two_nested_mod {
 
 use two_nested_mod::{LeftPart, RightPart, TwoNested, TwoNestedFieldName};
 
-// --- Mixed skip and nested in same struct ---
+// Mixed skip and nested in same struct
 
 mod mixed_skip_nested_mod {
     use struct_to_enum::FieldName;
@@ -156,7 +156,7 @@ use mixed_skip_nested_mod::{InnerMixed as MixedInner, Mixed, MixedFieldName};
 
 use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldName};
 
-// --- Complex nesting ---
+// Complex nesting
 mod complex_nesting {
     use struct_to_enum::FieldName;
 

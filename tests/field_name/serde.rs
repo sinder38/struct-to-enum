@@ -5,7 +5,7 @@ extern crate struct_to_enum;
 
 use struct_to_enum::FieldName;
 
-// --- FieldName enum can receive serde derives ---
+// FieldName enum can receive serde derives
 
 #[derive(FieldName, serde::Serialize, serde::Deserialize)]
 #[stem_name_derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -16,7 +16,7 @@ struct SerdeStruct {
     password: String,
 }
 
-// --- serde::Serialize only on the parent struct, not forwarded to enum ---
+// serde::Serialize only on the parent struct, not forwarded to enum
 
 #[derive(FieldName, serde::Serialize)]
 #[stem_name_derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -24,8 +24,6 @@ struct TestEmpty {
     first: i32,
     second_field: bool,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn serde_field_name_serialize() {

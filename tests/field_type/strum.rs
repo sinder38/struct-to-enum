@@ -4,10 +4,10 @@ extern crate struct_to_enum;
 extern crate strum;
 extern crate strum_macros;
 
-use strum::VariantNames;
 use struct_to_enum::FieldType;
+use strum::VariantNames;
 
-// --- VariantNames via stem_type_derive + serialize_all via stem_type_attr ---
+// VariantNames via stem_type_derive + serialize_all via stem_type_attr
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq, strum_macros::VariantNames)]
@@ -17,7 +17,7 @@ struct TestDeriveArguments {
     second_field: bool,
 }
 
-// --- snake_case serialize_all ---
+// snake_case serialize_all
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq, strum_macros::VariantNames)]
@@ -27,7 +27,7 @@ struct AttrTest {
     another_field: bool,
 }
 
-// --- Combined with FieldName strum on same struct (FieldType side only here) ---
+// Combined with FieldName strum on same struct (FieldType side only here)
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq, strum_macros::VariantNames)]
@@ -40,7 +40,7 @@ struct StrumCombinedType {
     is_active: bool,
 }
 
-// --- Short alias prefix (ste_) ---
+// Short alias prefix (ste_)
 
 #[derive(FieldType)]
 #[ste_type_derive(Debug, Clone, PartialEq)]
@@ -50,8 +50,6 @@ struct AliasTest {
     secret: String,
     label: &'static str,
 }
-
-// ----------------------------------------------------------------
 
 #[test]
 fn derive_macro_arguments_screaming_kebab() {
