@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-extern crate struct_to_enum;
-
 use struct_to_enum::FieldName;
+
+extern crate struct_to_enum;
 
 // Simple struct: skip both syntaxes
 
@@ -235,5 +235,15 @@ fn field_name_borrows_struct() {
     let names1: [ReusableFieldName; 2] = (&s).into();
     let names2: [ReusableFieldName; 2] = (&s).into();
     assert_eq!(names1, names2);
+    assert_eq!(s.a, 1);
+}
+
+#[test]
+fn field_names_trait_method() {
+    let s = Reusable { a: 1, b: 2 };
+    // Call .field_names() directly through the FieldNames trait
+    let names: [ReusableFieldName; 2] = FieldNames::field_names(&s);
+    assert_eq!(names, [ReusableFieldName::A, ReusableFieldName::B]);
+    // Struct is still accessible after the call
     assert_eq!(s.a, 1);
 }

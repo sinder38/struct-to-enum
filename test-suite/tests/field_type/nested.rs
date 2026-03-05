@@ -64,7 +64,7 @@ struct DeepOuter {
     middle: DeepMiddle,
 }
 
-// Three levels deep (Entity → Transform → Vec3)
+// Three levels deep (Entity -> Transform -> Vec3)
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, Clone, PartialEq)]
@@ -362,7 +362,7 @@ fn nested_field_type_three_levels() {
         active: true,
     };
     let fields: [EntityFieldType; 6] = e.into();
-    // Declaration order: id, transform→(scale, vx, vy, vz), active
+    // Declaration order: id, transform->(scale, vx, vy, vz), active
     assert_eq!(fields[0], EntityFieldType::Id(42));
     assert_eq!(fields[1], EntityFieldType::Scale(1.5));
     assert_eq!(fields[2], EntityFieldType::Vx(1.0));
@@ -419,7 +419,7 @@ fn mixed_skip_and_nested_field_type() {
         d: 99,
     };
     let fields: [MixedTypeFieldType; 4] = s.into();
-    // Declaration order: a, inner→(p, q), d
+    // Declaration order: a, inner->(p, q), d
     assert_eq!(fields[0], MixedTypeFieldType::A(10));
     assert_eq!(fields[1], MixedTypeFieldType::P(true));
     assert_eq!(fields[2], MixedTypeFieldType::Q(false));

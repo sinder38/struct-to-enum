@@ -1,7 +1,7 @@
 use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{ToTokens, quote};
-use std::{collections::HashSet, iter::FromIterator};
+use quote::quote;
+use std::collections::HashSet;
 use syn::{DeriveInput, Ident};
 
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
@@ -54,8 +54,6 @@ pub struct DeriveFieldName {
     /// Fields in declaration order, grouped into regular runs and nested slots.
     slots: Vec<FieldSlot>,
     type_snake: String,
-    impl_generics_tokens: TokenStream2,
-    from_lifetime: TokenStream2,
 }
 
 impl DeriveFieldName {
@@ -135,23 +133,6 @@ impl DeriveFieldName {
             }
         }
 
-        let (impl_generics, _, _) = generics.split_for_impl();
-        let from_lifetime = quote! { 'field_name_from_lifetime__ };
-
-        let mut impl_generics_tokens = TokenStream2::new();
-        impl_generics.to_tokens(&mut impl_generics_tokens);
-        if impl_generics_tokens.is_empty() {
-            impl_generics_tokens = quote! { <#from_lifetime> };
-        } else {
-            let mut tokens: Vec<_> = quote! { #from_lifetime, }.into_iter().collect();
-            let mut gen_iter = impl_generics_tokens.into_iter();
-            if let Some(token) = gen_iter.next() {
-                tokens.insert(0, token);
-            }
-            tokens.extend(gen_iter);
-            impl_generics_tokens = TokenStream2::from_iter(tokens);
-        }
-
         Ok(Self {
             vis,
             ident,
@@ -161,8 +142,6 @@ impl DeriveFieldName {
             extra_attrs,
             slots,
             type_snake,
-            impl_generics_tokens,
-            from_lifetime,
         })
     }
 
@@ -204,17 +183,15 @@ impl DeriveFieldName {
                 quote! { #e::#v }
             })
             .collect();
-        let fields_count = pairs.len();
 
         let vis = &self.vis;
         let ident = &self.ident;
         let enum_ident = &self.enum_ident;
         let derive_attrs = &self.derive_attrs;
         let extra_attrs = &self.extra_attrs;
-        let impl_generics_tokens = &self.impl_generics_tokens;
-        let from_lifetime = &self.from_lifetime;
-        let (_impl_generics, ty_generics, _where_clause) = self.generics.split_for_impl();
+        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
         let helper_macro_name = get_helper_macro_name(&self.type_snake);
+        let variant_count = pairs.len();
 
         let own_helper = quote! {
             #[doc(hidden)]
@@ -233,8 +210,13 @@ impl DeriveFieldName {
                 #(#variants),*
             }
 
-            impl #impl_generics_tokens From<& #ident #ty_generics> for [#enum_ident; #fields_count] {
-                fn from(_source: &  #ident #ty_generics) -> Self {
+            #[automatically_derived]
+            impl #impl_generics ::struct_to_enum::FieldNames<#variant_count>
+                for #ident #ty_generics
+                #where_clause
+            {
+                type FieldName = #enum_ident;
+                fn field_names() -> [Self::FieldName; #variant_count] {
                     [#(#constructs),*]
                 }
             }
@@ -361,8 +343,7 @@ impl DeriveFieldName {
         let derive = &self.derive_attrs;
         let attrs = &self.extra_attrs;
         let ty = &self.ident;
-        let impl_generics_tokens = &self.impl_generics_tokens;
-        let from_lifetime = &self.from_lifetime;
+        let (impl_generics, _, where_clause) = self.generics.split_for_impl();
         quote! {
             #[doc(hidden)]
             macro_rules! #macro_name {
@@ -373,12 +354,41 @@ impl DeriveFieldName {
                         $($variant),*
                     }
 
-                    impl #impl_generics_tokens From<& #from_lifetime #ty #ty_generics> for [#enum_ty; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }] {
-                        fn from(_source: & #from_lifetime #ty #ty_generics) -> Self {
+                    #[automatically_derived]
+                    impl #impl_generics ::struct_to_enum::FieldNames<{ let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }>
+                    for #ty #ty_generics
+                    #where_clause
+                    {
+                        type  FieldName = #enum_ty;
+                        fn field_names() -> [Self::FieldName; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }] {
                             [$(#enum_ty::$variant),*]
                         }
                     }
+
                 };
+            }
+        }
+    }
+
+    fn generate_field_names_impl(
+        &self,
+        ty_generics: &syn::TypeGenerics,
+        variants: TokenStream2,
+    ) -> TokenStream2 {
+        let variant_count = self.slots.len();
+        let ty = &self.ident;
+        let (impl_generics, _, where_clause) = self.generics.split_for_impl();
+        let enum_ty = &self.enum_ident;
+        quote! {
+            impl #impl_generics ::struct_to_enum::FieldNames<#variant_count>
+            for #ty #ty_generics
+            #where_clause
+            {
+                type  FieldName = #enum_ty;
+                fn field_names() -> [Self::FieldName; #variant_count] {
+                    [$(#enum_ty::$variant),*]
+                        #variants
+                }
             }
         }
     }

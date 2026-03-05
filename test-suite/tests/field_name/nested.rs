@@ -70,7 +70,7 @@ struct DeepOuter {
     middle: DeepMiddle,
 }
 
-// Three levels (Place → Location → Coordinates)
+// Three levels (Place -> Location -> Coordinates)
 
 mod deep_name_mod {
     use struct_to_enum::FieldName;
@@ -238,8 +238,7 @@ mod complex_nesting {
 fn complex_fields_field_name() {
     use ABCDEFGHIJKLMNOPFieldName as AlpName;
     let a = ABCDEFGHIJKLMNOP::default();
-    let letters: [AlpName; 16] = (&a).into();
-    //TODO: enable for order testing
+    let letters: [AlpName; 16] = ABCDEFGHIJKLMNOP::field_names();
 
     assert_eq!(
         letters,
@@ -389,7 +388,7 @@ fn mixed_skip_and_nested_field_name() {
         d: 4,
     };
     let names: [MixedFieldName; 4] = (&s).into();
-    // Declaration order: a, (b skipped), inner→(p, q), (c skipped), d
+    // Declaration order: a, (b skipped), inner->(p, q), (c skipped), d
     assert_eq!(
         names,
         [

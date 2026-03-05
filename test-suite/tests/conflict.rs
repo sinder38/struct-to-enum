@@ -1,9 +1,6 @@
 #![allow(dead_code)]
 
-extern crate serde;
 extern crate struct_to_enum;
-extern crate strum;
-extern crate strum_macros;
 
 use struct_to_enum::{FieldName, FieldType};
 use strum::VariantNames;
@@ -626,7 +623,7 @@ fn combined_nested_field_type_and_name() {
     };
 
     let fields: [DocumentFieldType; 4] = doc.into();
-    // Declaration order: title, meta→(version, author), content
+    // Declaration order: title, meta->(version, author), content
     assert_eq!(fields[0], DocumentFieldType::Title("Hello".to_string()));
     assert_eq!(fields[1], DocumentFieldType::Version(2));
     assert_eq!(fields[2], DocumentFieldType::Author("Alice".to_string()));

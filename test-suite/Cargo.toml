@@ -1,0 +1,15 @@
+[package]
+name = "struct-to-enum-tests"
+version = "0.0.0"
+authors = ["Sinder <smirnov.sinder@gmail.com>"]
+edition = "2024"
+publish = false
+
+
+[dependencies]
+struct-to-enum = { path = "../struct-to-enum", features = ["derive"] }
+
+[dev-dependencies]
+strum_macros = "0.28.0"
+strum = "0.28.0"
+serde = { version = "1.0.228", features = ["derive"] }
