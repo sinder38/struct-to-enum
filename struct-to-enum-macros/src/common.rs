@@ -16,30 +16,6 @@ pub struct FieldInfo {
     pub is_nested: bool,
 }
 
-/// Extract a user-specified derives
-/// Used for derive inheritance for generated enums
-pub fn get_enum_derive(
-    attrs: &[Attribute],
-    derive_attr_names: &[&'static str],
-    default: TokenStream2,
-) -> TokenStream2 {
-    attrs
-        .iter()
-        .find_map(|attr| {
-            let meta = &attr.meta;
-            for attr_name in derive_attr_names {
-                if meta.path().is_ident(attr_name) {
-                    if let Meta::List(meta_list) = meta {
-                        let tokens = &meta_list.tokens;
-                        return Some(quote! { #[derive(#tokens)] });
-                    }
-                }
-            }
-            None
-        })
-        .unwrap_or(default)
-}
-
 /// Extract user-specified attributes
 /// Used for derive and derive-attributes inheritance for generated enums
 pub fn get_meta_list(
@@ -68,7 +44,7 @@ pub fn get_meta_list(
 }
 
 /// Collect struct fields, skipping marked `skip` record marked as `nested`
-// Returns `FieldInfo` for each included field.
+/// Returns `FieldInfo` for each included field.
 pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Result<Vec<FieldInfo>> {
     let mut result = Vec::new();
     for field in fields.iter() {
@@ -81,13 +57,10 @@ pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Resul
             continue;
         }
 
-        //TODO: later I want to make a distiniction between nested and flattened for field type
         let is_nested = field
             .attrs
             .iter()
             .any(|attr| has_attr_with_value(attr, attr_names, "nested"));
-
-        //TODO: nested silently fails for FieldType, fix with `nested exension`
 
         let field_ident = field.ident.as_ref().unwrap().clone();
 

@@ -9,18 +9,19 @@ Derive macros for generating enums corresponding to the fields of structs.
 - **`FieldName`** — generates a unit enum where each variant represents a field name
 - **`FieldType`** — generates an enum where each variant wraps the type of a struct field
 
-Both macros support generics, field skipping, nesting (yes, you read that right) and custom derives/attributes on the generated enum.
+Both macros support generics, field skipping, nesting, and custom derives/attributes on the generated enum.
 
-Intended use-case is to generate  enums from struct fields, enabling compile-time column filter validation for queries.
+Intended use-case is to generate enums from struct fields, enabling compile-time column filter validation for queries.
 
 ## Usage
 
 ### `FieldName`
 
-Generates a unit enum `{StructName}FieldName` and a `From<&Struct>` impl that returns an array of variants in field order.
+Generates a unit enum `{StructName}FieldName` and implements [`FieldNames<N>`] on the struct,
+which provides a `field_names()` static method returning an ordered array of all variants.
 
 ```rust
-use struct_to_enum::FieldName;
+use struct_to_enum::{FieldName, FieldNames};
 
 #[derive(FieldName)]
 struct Point {
@@ -34,40 +35,41 @@ struct Point {
 // #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 // enum PointFieldName { X, Y }
 
-let p = Point { x: 1.0, y: 2.0, label: "origin".into() };
-let names: [PointFieldName; 2] = (&p).into();
+let names: [PointFieldName; 2] = Point::field_names();
 assert_eq!(names, [PointFieldName::X, PointFieldName::Y]);
 ```
 
 #### Nested flattening
 
 Mark a field with `#[stem_name(nested)]` to flatten its `FieldName` variants into the parent enum.
+The nested struct must also derive `FieldName`. Nesting can be arbitrarily deep.
 
 ```rust
-use struct_to_enum::FieldName;
+use struct_to_enum::{FieldName, FieldNames};
 
 #[derive(FieldName)]
-struct Inner {
-    x: i32,
-    y: i32,
+pub struct Address {
+    pub street: String,
+    pub city: String,
 }
 
 #[derive(FieldName)]
-struct Outer {
-    a: bool,
+struct Person {
+    name: String,
     #[stem_name(nested)]
-    inner: Inner,
+    address: Address,
 }
 
-// OuterFieldName has variants: A, X, Y
-let o = Outer { a: true, inner: Inner { x: 0, y: 1 } };
-let names: [OuterFieldName; 3] = (&o).into();
-assert_eq!(names, [OuterFieldName::A, OuterFieldName::X, OuterFieldName::Y]);
+// PersonFieldName has variants: Name, Street, City  (Address's variants are inlined)
+
+let names: [PersonFieldName; 3] = Person::field_names();
+assert_eq!(names, [PersonFieldName::Name, PersonFieldName::Street, PersonFieldName::City]);
 ```
 
 ### `FieldType`
 
-Generates a tuple-variant enum `{StructName}FieldType` and a `From<Struct>` impl that returns an array of variants holding the field values.
+Generates a tuple-variant enum `{StructName}FieldType` and implements `From<Struct>` for
+`[FieldType; N]`, converting the struct into an ordered array of variants holding the field values.
 
 ```rust
 use struct_to_enum::FieldType;
@@ -90,6 +92,41 @@ struct Config {
 
 let cfg = Config { width: 1920, height: 1080, name: "hd".into() };
 let fields: [ConfigFieldType; 2] = cfg.into();
+assert_eq!(fields[0], ConfigFieldType::Width(1920));
+assert_eq!(fields[1], ConfigFieldType::Height(1080));
+```
+
+#### Nested flattening
+
+Mark a field with `#[stem_type(nested)]` to flatten the nested struct's `FieldType` variants
+into the parent enum. The nested struct must also derive `FieldType`. Nesting can be arbitrarily deep.
+
+```rust
+use struct_to_enum::FieldType;
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, PartialEq)]
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
+#[derive(FieldType)]
+#[stem_type_derive(Debug, PartialEq)]
+struct Pixel {
+    x: i32,
+    y: i32,
+    #[stem_type(nested)]
+    color: Color,
+}
+
+// PixelFieldType has variants: X(i32), Y(i32), R(u8), G(u8), B(u8)
+
+let p = Pixel { x: 10, y: 20, color: Color { r: 255, g: 128, b: 0 } };
+let fields: [PixelFieldType; 5] = p.into();
+assert_eq!(fields[0], PixelFieldType::X(10));
+assert_eq!(fields[2], PixelFieldType::R(255));
 ```
 
 #### Generics
@@ -100,20 +137,20 @@ Both macros handle generic structs with lifetime and type parameters.
 use struct_to_enum::FieldType;
 
 #[derive(FieldType)]
-#[stem_type_derive(Debug, Clone, PartialEq)]
+#[stem_type_derive(Debug, PartialEq)]
 struct Pair<A, B> {
     first: A,
     second: B,
 }
 
-let p = Pair { first: 1_i32, second: "hello" };
-let fields: [PairFieldType<i32, &str>; 2] = p.into();
+let fields: [PairFieldType<i32, &str>; 2] = Pair { first: 1_i32, second: "hello" }.into();
+assert_eq!(fields[0], PairFieldType::First(1));
 ```
 
 ### Combining both macros
 
 ```rust
-use struct_to_enum::{FieldName, FieldType};
+use struct_to_enum::{FieldName, FieldNames, FieldType};
 
 #[derive(FieldName, FieldType)]
 #[stem_type_derive(Debug)]
@@ -123,6 +160,7 @@ struct Record {
 }
 
 // RecordFieldName and RecordFieldType are both generated
+let _names: [RecordFieldName; 2] = Record::field_names();
 ```
 
 ## Attributes
@@ -131,7 +169,7 @@ struct Record {
 
 | Attribute | Location | Description |
 |---|---|---|
-| `#[stem_name_derive(...)]` | Struct | Override derives on the generated enum (default: `Debug, PartialEq, Eq, Clone, Copy`) |
+| `#[stem_name_derive(...)]` | Struct | Merge additional derives onto the generated enum (defaults `Debug, PartialEq, Eq, Clone, Copy` are always kept) |
 | `#[stem_name_attr(...)]` | Struct | Add extra attributes to the generated enum |
 | `#[stem_name(skip)]` | Field | Exclude this field from the generated enum |
 | `#[stem_name(nested)]` | Field | Flatten the field's `FieldName` variants into the parent enum |
@@ -140,9 +178,10 @@ struct Record {
 
 | Attribute | Location | Description |
 |---|---|---|
-| `#[stem_type_derive(...)]` | Struct | Specify derives for the generated enum |
+| `#[stem_type_derive(...)]` | Struct | Specify derives for the generated enum (none by default) |
 | `#[stem_type_attr(...)]` | Struct | Add extra attributes to the generated enum |
 | `#[stem_type(skip)]` | Field | Exclude this field from the generated enum |
+| `#[stem_type(nested)]` | Field | Flatten the field's `FieldType` variants into the parent enum |
 
 > **Attribute aliases:** `stem_name` / `ste_name` and `stem_type` / `ste_type` are interchangeable.
 
@@ -150,7 +189,7 @@ struct Record {
 
 ```rust
 use struct_to_enum::FieldType;
-use strum_macros::VariantNames;
+use strum::VariantNames;
 
 #[derive(FieldType)]
 #[stem_type_derive(Debug, strum_macros::VariantNames)]

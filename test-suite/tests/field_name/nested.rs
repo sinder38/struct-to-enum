@@ -1,0 +1,353 @@
+#![allow(dead_code)]
+
+extern crate struct_to_enum;
+
+use struct_to_enum::{FieldName, FieldNames};
+
+// Single level of nesting
+
+mod single_level {
+    use struct_to_enum::FieldName;
+
+    #[derive(FieldName)]
+    pub struct Inner {
+        pub x: i32,
+        pub y: String,
+    }
+
+    #[derive(FieldName)]
+    pub struct Outer {
+        pub a: bool,
+        #[stem_name(nested)]
+        pub inner: Inner,
+    }
+}
+
+use single_level::{Outer as SingleOuter, OuterFieldName};
+
+// Single level
+
+mod address_mod {
+    use struct_to_enum::FieldName;
+
+    #[derive(FieldName)]
+    pub struct Address {
+        pub street: String,
+        pub city: String,
+        pub zip: u32,
+    }
+
+    #[derive(FieldName)]
+    pub struct Person {
+        pub name: String,
+        #[stem_name(nested)]
+        pub address: Address,
+        #[stem_name(skip)]
+        pub internal_id: u64,
+    }
+}
+
+use address_mod::{Person, PersonFieldName};
+
+// Two levels deep
+
+#[derive(FieldName)]
+struct DeepInner {
+    z: f64,
+}
+
+#[derive(FieldName)]
+struct DeepMiddle {
+    m: i32,
+    #[stem_name(nested)]
+    deep: DeepInner,
+}
+
+#[derive(FieldName)]
+struct DeepOuter {
+    top: bool,
+    #[stem_name(nested)]
+    middle: DeepMiddle,
+}
+
+// Three levels (Place -> Location -> Coordinates)
+
+mod deep_name_mod {
+    use struct_to_enum::FieldName;
+
+    #[derive(FieldName)]
+    pub struct Coordinates {
+        pub lat: f64,
+        pub lon: f64,
+    }
+
+    #[derive(FieldName)]
+    pub struct Location {
+        pub label: String,
+        #[stem_name(nested)]
+        pub coords: Coordinates,
+    }
+
+    #[derive(FieldName)]
+    pub struct Place {
+        pub title: String,
+        #[stem_name(nested)]
+        pub location: Location,
+        pub rank: u32,
+    }
+}
+
+use deep_name_mod::{Place, PlaceFieldName};
+
+// Two sibling nested fields in same struct
+
+mod two_nested_mod {
+    use struct_to_enum::FieldName;
+
+    #[derive(FieldName, Default)]
+    pub struct LeftPart {
+        pub lx: i32,
+        pub ly: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct RightPart {
+        pub rx: i32,
+        pub ry: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct TwoNested {
+        pub own: u8,
+        #[stem_name(nested)]
+        pub left: LeftPart,
+        #[stem_name(nested)]
+        pub right: RightPart,
+    }
+}
+
+use two_nested_mod::{TwoNested, TwoNestedFieldName};
+
+// Mixed skip and nested in same struct
+
+mod mixed_skip_nested_mod {
+    use struct_to_enum::FieldName;
+
+    #[derive(FieldName)]
+    pub struct InnerMixed {
+        pub p: bool,
+        pub q: bool,
+    }
+
+    #[derive(FieldName)]
+    pub struct Mixed {
+        pub a: i32,
+        #[stem_name(skip)]
+        pub b: i32,
+        #[stem_name(nested)]
+        pub inner: InnerMixed,
+        #[stem_name(skip)]
+        pub c: i32,
+        pub d: i32,
+    }
+}
+
+use mixed_skip_nested_mod::{Mixed, MixedFieldName};
+
+use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldName};
+
+// Complex nesting
+mod complex_nesting {
+    use struct_to_enum::FieldName;
+
+    #[derive(FieldName, Default)]
+    pub struct AB {
+        pub a: u32,
+        pub b: u32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct E {
+        pub e: u32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct CDEF {
+        pub c: i32,
+        pub d: i32,
+        #[stem_name(nested)]
+        pub e: E,
+        pub f: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct JKL {
+        pub j: i32,
+        pub k: i32,
+        pub l: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct GHIJKL {
+        pub g: i32,
+        pub h: i32,
+        pub i: i32,
+        #[stem_name(nested)]
+        pub jkl: JKL,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct P {
+        pub p: i32,
+    }
+    #[derive(FieldName, Default)]
+    pub struct O {
+        pub o: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct OP {
+        #[stem_name(nested)]
+        pub o: O,
+        #[stem_name(nested)]
+        pub p: P,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct GHIJKLMNOP {
+        #[stem_name(nested)]
+        pub ghijkl: GHIJKL,
+        pub m: i32,
+        pub n: i32,
+        #[stem_name(nested)]
+        pub op: OP,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct ABCDEFGHIJKLMNOP {
+        #[stem_name(nested)]
+        pub ab: AB,
+        #[stem_name(nested)]
+        pub cdf: CDEF,
+        #[stem_name(nested)]
+        pub ghijklmnop: GHIJKLMNOP,
+    }
+}
+
+#[test]
+fn complex_fields_field_name() {
+    use ABCDEFGHIJKLMNOPFieldName as AlpName;
+    let _a = ABCDEFGHIJKLMNOP::default();
+    let letters = <ABCDEFGHIJKLMNOP as FieldNames<16>>::field_names();
+
+    assert_eq!(
+        letters,
+        [
+            AlpName::A,
+            AlpName::B,
+            AlpName::C,
+            AlpName::D,
+            AlpName::E,
+            AlpName::F,
+            AlpName::G,
+            AlpName::H,
+            AlpName::I,
+            AlpName::J,
+            AlpName::K,
+            AlpName::L,
+            AlpName::M,
+            AlpName::N,
+            AlpName::O,
+            AlpName::P,
+        ]
+    )
+}
+
+#[test]
+fn nested_flat_field_name_variants() {
+    let _a = OuterFieldName::A;
+    let _x = OuterFieldName::X;
+    let _y = OuterFieldName::Y;
+
+    match OuterFieldName::X {
+        OuterFieldName::A => panic!("wrong"),
+        OuterFieldName::X => (),
+        OuterFieldName::Y => panic!("wrong"),
+    }
+}
+
+#[test]
+fn nested_flat_field_name_array() {
+    let fields = <SingleOuter as FieldNames<3>>::field_names();
+    assert_eq!(
+        fields,
+        [OuterFieldName::A, OuterFieldName::X, OuterFieldName::Y]
+    );
+}
+
+#[test]
+fn nested_field_name_single_level_address() {
+    let names = <Person as FieldNames<4>>::field_names();
+    assert_eq!(
+        names,
+        [
+            PersonFieldName::Name,
+            PersonFieldName::Street,
+            PersonFieldName::City,
+            PersonFieldName::Zip,
+        ]
+    );
+}
+
+#[test]
+fn nested_flat_deep_two_levels() {
+    let fields = <DeepOuter as FieldNames<3>>::field_names();
+    assert_eq!(
+        fields,
+        [
+            DeepOuterFieldName::Top,
+            DeepOuterFieldName::M,
+            DeepOuterFieldName::Z
+        ]
+    );
+}
+
+#[test]
+fn nested_field_name_three_levels() {
+    let names = <Place as FieldNames<5>>::field_names();
+    assert_eq!(
+        names,
+        [
+            PlaceFieldName::Title,
+            PlaceFieldName::Label,
+            PlaceFieldName::Lat,
+            PlaceFieldName::Lon,
+            PlaceFieldName::Rank,
+        ]
+    );
+}
+
+#[test]
+fn nested_two_sibling_fields() {
+    let names = <TwoNested as FieldNames<5>>::field_names();
+    assert_eq!(names[0], TwoNestedFieldName::Own);
+    assert_eq!(names[1], TwoNestedFieldName::Lx);
+    assert_eq!(names[2], TwoNestedFieldName::Ly);
+    assert_eq!(names[3], TwoNestedFieldName::Rx);
+    assert_eq!(names[4], TwoNestedFieldName::Ry);
+}
+
+#[test]
+fn mixed_skip_and_nested_field_name() {
+    let names = <Mixed as FieldNames<4>>::field_names();
+    // Declaration order: a, (b skipped), inner->(p, q), (c skipped), d
+    assert_eq!(
+        names,
+        [
+            MixedFieldName::A,
+            MixedFieldName::P,
+            MixedFieldName::Q,
+            MixedFieldName::D,
+        ]
+    );
+}
