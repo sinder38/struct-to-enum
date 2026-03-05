@@ -755,117 +755,6 @@ fn nested_field_name_three_levels() {
 }
 
 // ============================================================
-// Section 13: Nested FieldName — two nested fields in one struct
-// ============================================================
-
-mod complex_nesting {
-    use struct_to_enum::FieldName;
-
-    #[derive(FieldName, Default)]
-    pub struct AB {
-        pub a: u32,
-        pub b: u32,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct E {
-        pub e: u32,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct CDEF {
-        pub c: i32,
-        pub d: i32,
-        #[stem_name(nested)]
-        pub e: E,
-        pub f: i32,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct JKL {
-        pub j: i32,
-        pub k: i32,
-        pub l: i32,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct GHIJKL {
-        pub g: i32,
-        pub h: i32,
-        pub i: i32,
-        #[stem_name(nested)]
-        pub jkl: JKL,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct P {
-        pub p: i32,
-    }
-    #[derive(FieldName, Default)]
-    pub struct O {
-        pub o: i32,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct OP {
-        #[stem_name(nested)]
-        pub o: O,
-        #[stem_name(nested)]
-        pub p: P,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct GHIJKLMNOP {
-        #[stem_name(nested)]
-        pub ghijkl: GHIJKL,
-        pub m: i32,
-        pub n: i32,
-        #[stem_name(nested)]
-        pub op: OP,
-    }
-
-    #[derive(FieldName, Default)]
-    pub struct ABCDEFGHIJKLMNOP {
-        #[stem_name(nested)]
-        pub ab: AB,
-        #[stem_name(nested)]
-        pub cdf: CDEF,
-        #[stem_name(nested)]
-        pub ghijklmnop: GHIJKLMNOP,
-    }
-}
-
-use complex_nesting::GHIJKLMNOP;
-
-#[test]
-fn complex_fields_field_name() {
-    use ABCDEFGHIJKLMNOPFieldName as AlpName;
-    let a = ABCDEFGHIJKLMNOP::default();
-    let letters: [AlpName; 16] = (&a).into();
-    //TODO: enable for order testing
-
-    // assert_eq!(
-    //     letters,
-    //     [
-    //         AlpName::A,
-    //         AlpName::B,
-    //         AlpName::C,
-    //         AlpName::D,
-    //         AlpName::E,
-    //         AlpName::F,
-    //         AlpName::G,
-    //         AlpName::H,
-    //         AlpName::I,
-    //         AlpName::J,
-    //         AlpName::K,
-    //         AlpName::L,
-    //         AlpName::M,
-    //         AlpName::N,
-    //         AlpName::O,
-    //         AlpName::P,
-    //     ]
-    // )
-}
 
 // ============================================================
 // Section 14: Nested FieldType — single level
@@ -951,13 +840,13 @@ fn nested_field_type_three_levels() {
         active: true,
     };
     let fields: [EntityFieldType; 6] = e.into();
-    // Own non-nested fields first: Id, Active; then nested (Transform → Scale, Vx, Vy, Vz)
+    // Declaration order: id, transform→(scale, vx, vy, vz), active
     assert_eq!(fields[0], EntityFieldType::Id(42));
-    assert_eq!(fields[1], EntityFieldType::Active(true));
-    assert_eq!(fields[2], EntityFieldType::Scale(1.5));
-    assert_eq!(fields[3], EntityFieldType::Vx(1.0));
-    assert_eq!(fields[4], EntityFieldType::Vy(2.0));
-    assert_eq!(fields[5], EntityFieldType::Vz(3.0));
+    assert_eq!(fields[1], EntityFieldType::Scale(1.5));
+    assert_eq!(fields[2], EntityFieldType::Vx(1.0));
+    assert_eq!(fields[3], EntityFieldType::Vy(2.0));
+    assert_eq!(fields[4], EntityFieldType::Vz(3.0));
+    assert_eq!(fields[5], EntityFieldType::Active(true));
 }
 
 // ============================================================
@@ -1052,11 +941,11 @@ fn combined_nested_field_type_and_name() {
     };
 
     let fields: [DocumentFieldType; 4] = doc.into();
-    // Own non-nested fields first (Title, Content), then nested (Version, Author)
+    // Declaration order: title, meta→(version, author), content
     assert_eq!(fields[0], DocumentFieldType::Title("Hello".to_string()));
-    assert_eq!(fields[1], DocumentFieldType::Content("World".to_string()));
-    assert_eq!(fields[2], DocumentFieldType::Version(2));
-    assert_eq!(fields[3], DocumentFieldType::Author("Alice".to_string()));
+    assert_eq!(fields[1], DocumentFieldType::Version(2));
+    assert_eq!(fields[2], DocumentFieldType::Author("Alice".to_string()));
+    assert_eq!(fields[3], DocumentFieldType::Content("World".to_string()));
 
     let doc2 = Document {
         title: "Hello".to_string(),
@@ -1373,8 +1262,6 @@ mod mixed_skip_nested_mod {
 
 use mixed_skip_nested_mod::{Inner as MixedInner, Mixed, MixedFieldName};
 
-use crate::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldName};
-
 #[test]
 fn mixed_skip_and_nested_field_name() {
     let s = Mixed {
@@ -1431,11 +1318,11 @@ fn mixed_skip_and_nested_field_type() {
         d: 99,
     };
     let fields: [MixedTypeFieldType; 4] = s.into();
-    // Own non-nested fields first (A, D), then nested (P, Q)
+    // Declaration order: a, inner→(p, q), d
     assert_eq!(fields[0], MixedTypeFieldType::A(10));
-    assert_eq!(fields[1], MixedTypeFieldType::D(99));
-    assert_eq!(fields[2], MixedTypeFieldType::P(true));
-    assert_eq!(fields[3], MixedTypeFieldType::Q(false));
+    assert_eq!(fields[1], MixedTypeFieldType::P(true));
+    assert_eq!(fields[2], MixedTypeFieldType::Q(false));
+    assert_eq!(fields[3], MixedTypeFieldType::D(99));
 }
 
 // ============================================================

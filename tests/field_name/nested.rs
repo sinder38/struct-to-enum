@@ -154,7 +154,115 @@ mod mixed_skip_nested_mod {
 
 use mixed_skip_nested_mod::{InnerMixed as MixedInner, Mixed, MixedFieldName};
 
-// ----------------------------------------------------------------
+use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldName};
+
+// --- Complex nesting ---
+mod complex_nesting {
+    use struct_to_enum::FieldName;
+
+    #[derive(FieldName, Default)]
+    pub struct AB {
+        pub a: u32,
+        pub b: u32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct E {
+        pub e: u32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct CDEF {
+        pub c: i32,
+        pub d: i32,
+        #[stem_name(nested)]
+        pub e: E,
+        pub f: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct JKL {
+        pub j: i32,
+        pub k: i32,
+        pub l: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct GHIJKL {
+        pub g: i32,
+        pub h: i32,
+        pub i: i32,
+        #[stem_name(nested)]
+        pub jkl: JKL,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct P {
+        pub p: i32,
+    }
+    #[derive(FieldName, Default)]
+    pub struct O {
+        pub o: i32,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct OP {
+        #[stem_name(nested)]
+        pub o: O,
+        #[stem_name(nested)]
+        pub p: P,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct GHIJKLMNOP {
+        #[stem_name(nested)]
+        pub ghijkl: GHIJKL,
+        pub m: i32,
+        pub n: i32,
+        #[stem_name(nested)]
+        pub op: OP,
+    }
+
+    #[derive(FieldName, Default)]
+    pub struct ABCDEFGHIJKLMNOP {
+        #[stem_name(nested)]
+        pub ab: AB,
+        #[stem_name(nested)]
+        pub cdf: CDEF,
+        #[stem_name(nested)]
+        pub ghijklmnop: GHIJKLMNOP,
+    }
+}
+
+#[test]
+fn complex_fields_field_name() {
+    use ABCDEFGHIJKLMNOPFieldName as AlpName;
+    let a = ABCDEFGHIJKLMNOP::default();
+    let letters: [AlpName; 16] = (&a).into();
+    //TODO: enable for order testing
+
+    assert_eq!(
+        letters,
+        [
+            AlpName::A,
+            AlpName::B,
+            AlpName::C,
+            AlpName::D,
+            AlpName::E,
+            AlpName::F,
+            AlpName::G,
+            AlpName::H,
+            AlpName::I,
+            AlpName::J,
+            AlpName::K,
+            AlpName::L,
+            AlpName::M,
+            AlpName::N,
+            AlpName::O,
+            AlpName::P,
+        ]
+    )
+}
 
 #[test]
 fn nested_flat_field_name_variants() {

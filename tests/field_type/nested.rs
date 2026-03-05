@@ -169,7 +169,115 @@ struct MixedType {
     d: i32,
 }
 
-// ----------------------------------------------------------------
+use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldType};
+
+// --- Complex nesting ---
+mod complex_nesting {
+    use struct_to_enum::FieldType;
+
+    #[derive(FieldType, Default)]
+    pub struct AB {
+        pub a: u32,
+        pub b: u32,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct E {
+        pub e: u32,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct CDEF {
+        pub c: i32,
+        pub d: i32,
+        #[stem_type(nested)]
+        pub e: E,
+        pub f: i32,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct JKL {
+        pub j: i32,
+        pub k: i32,
+        pub l: i32,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct GHIJKL {
+        pub g: i32,
+        pub h: i32,
+        pub i: i32,
+        #[stem_type(nested)]
+        pub jkl: JKL,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct P {
+        pub p: i32,
+    }
+    #[derive(FieldType, Default)]
+    pub struct O {
+        pub o: i32,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct OP {
+        #[stem_type(nested)]
+        pub o: O,
+        #[stem_type(nested)]
+        pub p: P,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct GHIJKLMNOP {
+        #[stem_type(nested)]
+        pub ghijkl: GHIJKL,
+        pub m: i32,
+        pub n: i32,
+        #[stem_type(nested)]
+        pub op: OP,
+    }
+
+    #[derive(FieldType, Default)]
+    pub struct ABCDEFGHIJKLMNOP {
+        #[stem_type(nested)]
+        pub ab: AB,
+        #[stem_type(nested)]
+        pub cdf: CDEF,
+        #[stem_type(nested)]
+        pub ghijklmnop: GHIJKLMNOP,
+    }
+}
+
+#[test]
+fn complex_fields_field_name() {
+    use ABCDEFGHIJKLMNOPFieldType as AlpName;
+    let a = ABCDEFGHIJKLMNOP::default();
+    let letters: [AlpName; 16] = (&a).into();
+    //TODO: enable for order testing
+
+    assert_eq!(
+        letters,
+        [
+            AlpName::A,
+            AlpName::B,
+            AlpName::C,
+            AlpName::D,
+            AlpName::E,
+            AlpName::F,
+            AlpName::G,
+            AlpName::H,
+            AlpName::I,
+            AlpName::J,
+            AlpName::K,
+            AlpName::L,
+            AlpName::M,
+            AlpName::N,
+            AlpName::O,
+            AlpName::P,
+        ]
+    )
+}
 
 #[test]
 fn nested_field_type_variants() {
@@ -245,13 +353,13 @@ fn nested_field_type_three_levels() {
         active: true,
     };
     let fields: [EntityFieldType; 6] = e.into();
-    // Own non-nested fields first: Id, Active; then nested (Scale, Vx, Vy, Vz)
+    // Declaration order: id, transform→(scale, vx, vy, vz), active
     assert_eq!(fields[0], EntityFieldType::Id(42));
-    assert_eq!(fields[1], EntityFieldType::Active(true));
-    assert_eq!(fields[2], EntityFieldType::Scale(1.5));
-    assert_eq!(fields[3], EntityFieldType::Vx(1.0));
-    assert_eq!(fields[4], EntityFieldType::Vy(2.0));
-    assert_eq!(fields[5], EntityFieldType::Vz(3.0));
+    assert_eq!(fields[1], EntityFieldType::Scale(1.5));
+    assert_eq!(fields[2], EntityFieldType::Vx(1.0));
+    assert_eq!(fields[3], EntityFieldType::Vy(2.0));
+    assert_eq!(fields[4], EntityFieldType::Vz(3.0));
+    assert_eq!(fields[5], EntityFieldType::Active(true));
 }
 
 #[test]
@@ -302,9 +410,9 @@ fn mixed_skip_and_nested_field_type() {
         d: 99,
     };
     let fields: [MixedTypeFieldType; 4] = s.into();
-    // Own non-nested fields first (A, D), then nested (P, Q)
+    // Declaration order: a, inner→(p, q), d
     assert_eq!(fields[0], MixedTypeFieldType::A(10));
-    assert_eq!(fields[1], MixedTypeFieldType::D(99));
-    assert_eq!(fields[2], MixedTypeFieldType::P(true));
-    assert_eq!(fields[3], MixedTypeFieldType::Q(false));
+    assert_eq!(fields[1], MixedTypeFieldType::P(true));
+    assert_eq!(fields[2], MixedTypeFieldType::Q(false));
+    assert_eq!(fields[3], MixedTypeFieldType::D(99));
 }
