@@ -4,8 +4,10 @@ version = "1.0.0"
 rust-version = "1.85.0"
 authors = ["Sinder <smirnov.sinder@gmail.com>"]
 description = "Trait definitions for struct-to-enum derive macros"
+readme = "../README.md"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/sinder38/struct-to-enum"
 
 [dependencies]
 struct-to-enum-macros = { path = "../struct-to-enum-macros", optional = true, version = "1.0.0" }
