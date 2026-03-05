@@ -1,4 +1,5 @@
-use struct_to_enum::{FieldName, FieldType};
+#![allow(dead_code)]
+use struct_to_enum::FieldName;
 // Utility file for macro expansion debugging (cargo expand --test expand)
 
 #[derive(FieldName)]

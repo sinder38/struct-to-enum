@@ -1,6 +1,6 @@
 [package]
 name = "struct-to-enum"
-version = "0.0.1"
+version = "1.0.0"
 rust-version = "1.85.0"
 authors = ["Sinder <smirnov.sinder@gmail.com>"]
 description = "Trait definitions for struct-to-enum derive macros"
@@ -8,7 +8,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-struct-to-enum-macros = { path = "../struct-to-enum-macros", optional = true, version = "0.0.1" }
+struct-to-enum-macros = { path = "../struct-to-enum-macros", optional = true, version = "1.0.0" }
 
 [features]
 derive = ["struct-to-enum-macros"]

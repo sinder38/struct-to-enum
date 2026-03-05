@@ -25,7 +25,7 @@ mod single_level {
 
 use single_level::{Outer as SingleOuter, OuterFieldName};
 
-// Single level (real-world: Address in Person)
+// Single level
 
 mod address_mod {
     use struct_to_enum::FieldName;

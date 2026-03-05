@@ -331,7 +331,7 @@ impl DeriveFieldName {
         })
     }
 
-    /// Emit the terminal macro that, once it has the full flat list of
+    /// Emit the builder macro that, once it has the full flat list of
     /// `Variant => "field_name"` pairs, generates the enum and `From` impl.
     fn generate_field_name_builder_macro(
         &self,
@@ -370,6 +370,8 @@ impl DeriveFieldName {
         }
     }
 
+    // TODO: for later
+    #[allow(dead_code)]
     fn generate_field_names_impl(
         &self,
         ty_generics: &syn::TypeGenerics,

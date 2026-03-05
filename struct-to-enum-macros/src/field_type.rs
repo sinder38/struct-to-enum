@@ -258,7 +258,7 @@ impl DeriveFieldType {
             }
         }
 
-        // Kick off: step 0 with builder as callback, empty prefix
+        // Build: step 0 with builder as callback, empty prefix
         let step_0 = step_name(0);
         let invocation = quote! { #step_0!{#builder_macro_name; {}; } };
 
@@ -282,7 +282,7 @@ impl DeriveFieldType {
         })
     }
 
-    /// Terminal builder macro: receives all `Variant(Type) { .path },` entries
+    /// Builder macro: receives all `Variant(Type) { .path },` entries
     /// and generates the enum and From impls.
     /// The path entries are like `.a` or `.inner.x` - the builder prepends `source`.
     fn generate_field_type_builder_macro(
