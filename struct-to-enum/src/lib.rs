@@ -51,8 +51,8 @@ mod tests {
 
     #[test]
     pub fn test_field_names() {
-        let test = Test { a: 0, b: 0 };
-        let a: TestFieldName = <Test as FieldNames<2>>::FieldName::A;
+        let _test = Test { a: 0, b: 0 };
+        let _a: TestFieldName = <Test as FieldNames<2>>::FieldName::A;
         assert_eq!(Test::field_names(), [TestFieldName::A, TestFieldName::B]);
     }
 }

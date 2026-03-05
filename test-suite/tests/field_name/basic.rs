@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use struct_to_enum::FieldName;
+use struct_to_enum::{FieldName, FieldNames};
 
 extern crate struct_to_enum;
 
@@ -151,14 +151,8 @@ fn derive_field_name() {
 
 #[test]
 fn field_name_into_array() {
-    let s = Test {
-        first: 1,
-        second_field: Some("x".to_string()),
-        third: true,
-        fourth: false,
-    };
     // third and fourth are both skipped so only 2 variants remain
-    let names: [TestFieldName; 2] = (&s).into();
+    let names = <Test as FieldNames<2>>::field_names();
     assert!(matches!(
         names,
         [TestFieldName::First, TestFieldName::SecondField]
@@ -167,14 +161,7 @@ fn field_name_into_array() {
 
 #[test]
 fn skip_both_syntaxes() {
-    let dummy = SkipSyntaxTest {
-        keep_a: 0,
-        skip_paren: 0,
-        keep_b: 0,
-        skip_eq: 0,
-        keep_c: 0,
-    };
-    let names: [SkipSyntaxTestFieldName; 3] = (&dummy).into();
+    let names = <SkipSyntaxTest as FieldNames<3>>::field_names();
     assert_eq!(
         names,
         [
@@ -187,37 +174,19 @@ fn skip_both_syntaxes() {
 
 #[test]
 fn single_field_struct() {
-    let names: [SingleFieldFieldName; 1] = (&SingleField { only: 0 }).into();
+    let names = <SingleField as FieldNames<1>>::field_names();
     assert_eq!(names[0], SingleFieldFieldName::Only);
 }
 
 #[test]
 fn almost_all_skipped() {
-    let names: [AlmostAllSkippedFieldName; 1] = (&AlmostAllSkipped {
-        a: 0,
-        b: 0,
-        c: 0,
-        survivor: String::new(),
-    })
-        .into();
+    let names = <AlmostAllSkipped as FieldNames<1>>::field_names();
     assert_eq!(names[0], AlmostAllSkippedFieldName::Survivor);
 }
 
 #[test]
 fn large_struct_field_order_preserved() {
-    let dummy = BigStruct {
-        field_one: 0,
-        field_two: 0,
-        field_three: 0,
-        field_four: 0,
-        field_five: 0,
-        field_six: 0,
-        field_seven: 0,
-        field_eight: 0,
-        field_nine: 0.0,
-        field_ten: 0.0,
-    };
-    let names: [BigStructFieldName; 10] = (&dummy).into();
+    let names = <BigStruct as FieldNames<10>>::field_names();
     assert_eq!(names[0], BigStructFieldName::FieldOne);
     assert_eq!(names[9], BigStructFieldName::FieldTen);
 }
@@ -232,8 +201,8 @@ fn exhaustive_match_compiles_and_runs() {
 #[test]
 fn field_name_borrows_struct() {
     let s = Reusable { a: 1, b: 2 };
-    let names1: [ReusableFieldName; 2] = (&s).into();
-    let names2: [ReusableFieldName; 2] = (&s).into();
+    let names1 = <Reusable as FieldNames<2>>::field_names();
+    let names2 = <Reusable as FieldNames<2>>::field_names();
     assert_eq!(names1, names2);
     assert_eq!(s.a, 1);
 }
@@ -241,8 +210,7 @@ fn field_name_borrows_struct() {
 #[test]
 fn field_names_trait_method() {
     let s = Reusable { a: 1, b: 2 };
-    // Call .field_names() directly through the FieldNames trait
-    let names: [ReusableFieldName; 2] = FieldNames::field_names(&s);
+    let names = <Reusable as FieldNames<2>>::field_names();
     assert_eq!(names, [ReusableFieldName::A, ReusableFieldName::B]);
     // Struct is still accessible after the call
     assert_eq!(s.a, 1);

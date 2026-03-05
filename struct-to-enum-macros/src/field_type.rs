@@ -3,7 +3,7 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{DeriveInput, Ident, Type};
 
-use crate::common::{FieldInfo, extract_type_ident, filter_fields, get_meta_list};
+use crate::common::{extract_type_ident, filter_fields, get_meta_list};
 
 #[inline]
 fn get_helper_macro_name(type_snake: &str) -> Ident {

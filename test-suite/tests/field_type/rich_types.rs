@@ -33,7 +33,7 @@ struct OptionalFields {
 
 // FieldName counterpart for rich types (validates PascalCase conversion)
 
-use struct_to_enum::FieldName;
+use struct_to_enum::{FieldName, FieldNames};
 
 #[derive(FieldName)]
 #[stem_name_derive(Debug, Clone, PartialEq)]
@@ -71,17 +71,7 @@ fn rich_field_types_variants() {
 
 #[test]
 fn rich_field_types_field_name_array() {
-    let dummy = RichTypesNames {
-        count: 0,
-        tags: vec![],
-        map: HashMap::new(),
-        pair: (0, 0),
-        fixed: [0.0; 4],
-        boxed: Box::new(0),
-        maybe: None,
-        result_field: Ok(0),
-    };
-    let names: [RichTypesNamesFieldName; 8] = (&dummy).into();
+    let names = <RichTypesNames as FieldNames<8>>::field_names();
     assert_eq!(names[0], RichTypesNamesFieldName::Count);
     assert_eq!(names[1], RichTypesNamesFieldName::Tags);
     assert_eq!(names[2], RichTypesNamesFieldName::Map);

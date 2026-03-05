@@ -2,7 +2,7 @@
 
 extern crate struct_to_enum;
 
-use struct_to_enum::FieldName;
+use struct_to_enum::{FieldName, FieldNames};
 
 // Single level of nesting
 
@@ -23,7 +23,7 @@ mod single_level {
     }
 }
 
-use single_level::{Inner as SingleInner, Outer as SingleOuter, OuterFieldName};
+use single_level::{Outer as SingleOuter, OuterFieldName};
 
 // Single level (real-world: Address in Person)
 
@@ -47,7 +47,7 @@ mod address_mod {
     }
 }
 
-use address_mod::{Address, Person, PersonFieldName};
+use address_mod::{Person, PersonFieldName};
 
 // Two levels deep
 
@@ -97,7 +97,7 @@ mod deep_name_mod {
     }
 }
 
-use deep_name_mod::{Coordinates, Location, Place, PlaceFieldName};
+use deep_name_mod::{Place, PlaceFieldName};
 
 // Two sibling nested fields in same struct
 
@@ -126,7 +126,7 @@ mod two_nested_mod {
     }
 }
 
-use two_nested_mod::{LeftPart, RightPart, TwoNested, TwoNestedFieldName};
+use two_nested_mod::{TwoNested, TwoNestedFieldName};
 
 // Mixed skip and nested in same struct
 
@@ -152,7 +152,7 @@ mod mixed_skip_nested_mod {
     }
 }
 
-use mixed_skip_nested_mod::{InnerMixed as MixedInner, Mixed, MixedFieldName};
+use mixed_skip_nested_mod::{Mixed, MixedFieldName};
 
 use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldName};
 
@@ -237,8 +237,8 @@ mod complex_nesting {
 #[test]
 fn complex_fields_field_name() {
     use ABCDEFGHIJKLMNOPFieldName as AlpName;
-    let a = ABCDEFGHIJKLMNOP::default();
-    let letters: [AlpName; 16] = ABCDEFGHIJKLMNOP::field_names();
+    let _a = ABCDEFGHIJKLMNOP::default();
+    let letters = <ABCDEFGHIJKLMNOP as FieldNames<16>>::field_names();
 
     assert_eq!(
         letters,
@@ -278,14 +278,7 @@ fn nested_flat_field_name_variants() {
 
 #[test]
 fn nested_flat_field_name_array() {
-    let outer = SingleOuter {
-        a: true,
-        inner: SingleInner {
-            x: 0,
-            y: String::new(),
-        },
-    };
-    let fields: [OuterFieldName; 3] = (&outer).into();
+    let fields = <SingleOuter as FieldNames<3>>::field_names();
     assert_eq!(
         fields,
         [OuterFieldName::A, OuterFieldName::X, OuterFieldName::Y]
@@ -294,17 +287,7 @@ fn nested_flat_field_name_array() {
 
 #[test]
 fn nested_field_name_single_level_address() {
-    let p = Person {
-        name: "Bob".to_string(),
-        address: Address {
-            street: "1 Main St".to_string(),
-            city: "NY".to_string(),
-            zip: 10001,
-        },
-        internal_id: 999,
-    };
-
-    let names: [PersonFieldName; 4] = (&p).into();
+    let names = <Person as FieldNames<4>>::field_names();
     assert_eq!(
         names,
         [
@@ -318,14 +301,7 @@ fn nested_field_name_single_level_address() {
 
 #[test]
 fn nested_flat_deep_two_levels() {
-    let outer = DeepOuter {
-        top: true,
-        middle: DeepMiddle {
-            m: 0,
-            deep: DeepInner { z: 0.0 },
-        },
-    };
-    let fields: [DeepOuterFieldName; 3] = (&outer).into();
+    let fields = <DeepOuter as FieldNames<3>>::field_names();
     assert_eq!(
         fields,
         [
@@ -338,19 +314,7 @@ fn nested_flat_deep_two_levels() {
 
 #[test]
 fn nested_field_name_three_levels() {
-    let p = Place {
-        title: "Eiffel Tower".to_string(),
-        location: Location {
-            label: "Paris".to_string(),
-            coords: Coordinates {
-                lat: 48.858,
-                lon: 2.294,
-            },
-        },
-        rank: 1,
-    };
-
-    let names: [PlaceFieldName; 5] = (&p).into();
+    let names = <Place as FieldNames<5>>::field_names();
     assert_eq!(
         names,
         [
@@ -365,12 +329,7 @@ fn nested_field_name_three_levels() {
 
 #[test]
 fn nested_two_sibling_fields() {
-    let s = TwoNested {
-        own: 5,
-        left: LeftPart { lx: 1, ly: 2 },
-        right: RightPart { rx: 3, ry: 4 },
-    };
-    let names: [TwoNestedFieldName; 5] = (&s).into();
+    let names = <TwoNested as FieldNames<5>>::field_names();
     assert_eq!(names[0], TwoNestedFieldName::Own);
     assert_eq!(names[1], TwoNestedFieldName::Lx);
     assert_eq!(names[2], TwoNestedFieldName::Ly);
@@ -380,14 +339,7 @@ fn nested_two_sibling_fields() {
 
 #[test]
 fn mixed_skip_and_nested_field_name() {
-    let s = Mixed {
-        a: 1,
-        b: 2,
-        inner: MixedInner { p: true, q: false },
-        c: 3,
-        d: 4,
-    };
-    let names: [MixedFieldName; 4] = (&s).into();
+    let names = <Mixed as FieldNames<4>>::field_names();
     // Declaration order: a, (b skipped), inner->(p, q), (c skipped), d
     assert_eq!(
         names,

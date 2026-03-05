@@ -81,13 +81,10 @@ pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Resul
             continue;
         }
 
-        //TODO: later I want to make a distiniction between nested and flattened for field type
         let is_nested = field
             .attrs
             .iter()
             .any(|attr| has_attr_with_value(attr, attr_names, "nested"));
-
-        //TODO: nested silently fails for FieldType, fix with `nested exension`
 
         let field_ident = field.ident.as_ref().unwrap().clone();
 

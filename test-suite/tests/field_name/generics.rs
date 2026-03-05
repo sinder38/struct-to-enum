@@ -2,7 +2,7 @@
 
 extern crate struct_to_enum;
 
-use struct_to_enum::FieldName;
+use struct_to_enum::{FieldName, FieldNames};
 
 // Generic struct with lifetime
 
@@ -74,15 +74,7 @@ fn generic_field_name_equality() {
 
 #[test]
 fn multi_generic_field_name_from() {
-    let c_val = "world".to_string();
-    let hidden_val = 0i32;
-    let s = MultiGeneric {
-        alpha: 42i32,
-        beta: true,
-        gamma: &c_val,
-        hidden: &hidden_val,
-    };
-    let names: [MultiGenericFieldName; 3] = (&s).into();
+    let names = <MultiGeneric<'_, i32, bool, String> as FieldNames<3>>::field_names();
     assert_eq!(
         names,
         [
@@ -95,12 +87,6 @@ fn multi_generic_field_name_from() {
 
 #[test]
 fn generic_field_name_from() {
-    let val = 42i32;
-    let w = Wrapper {
-        value: &val,
-        tag: "t",
-        hidden: 0,
-    };
-    let names: [WrapperFieldName; 2] = (&w).into();
+    let names = <Wrapper<'_, i32> as FieldNames<2>>::field_names();
     assert_eq!(names, [WrapperFieldName::Value, WrapperFieldName::Tag]);
 }

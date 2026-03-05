@@ -2,7 +2,7 @@
 
 extern crate struct_to_enum;
 
-use struct_to_enum::{FieldName, FieldType};
+use struct_to_enum::{FieldName, FieldNames, FieldType};
 use strum::VariantNames;
 use strum_macros::EnumString;
 
@@ -137,13 +137,7 @@ fn into_field_types() {
         TestFieldType::Fourth(true),
     ] if s == "test"));
 
-    let test = Test {
-        first: 1,
-        second_field: Some("test".to_string()),
-        third: true,
-        fourth: true,
-    };
-    let names: [TestFieldName; 2] = (&test).into();
+    let names = <Test as FieldNames<2>>::field_names();
     assert!(matches!(
         names,
         [TestFieldName::First, TestFieldName::SecondField]
@@ -159,10 +153,9 @@ fn into_field_types() {
                  TestGenFieldType::Fourth(_),
              ] if s == &message));
 
-    let test = TestGen::new(1, &message, &2, message.clone());
-    let fields: [TestGenFieldName; 2] = (&test).into();
+    let names2 = <TestGen<'_, i32, String> as FieldNames<2>>::field_names();
     assert!(matches!(
-        fields,
+        names2,
         [TestGenFieldName::First, TestGenFieldName::SecondField]
     ));
 }
@@ -247,14 +240,7 @@ fn both_skip_syntaxes() {
     assert_eq!(fields[1], SkipSyntaxTestFieldType::KeepB(3));
     assert_eq!(fields[2], SkipSyntaxTestFieldType::KeepC(5));
 
-    let dummy = SkipSyntaxTest {
-        keep_a: 0,
-        skip_paren: 0,
-        keep_b: 0,
-        skip_eq: 0,
-        keep_c: 0,
-    };
-    let names: [SkipSyntaxTestFieldName; 3] = (&dummy).into();
+    let names = <SkipSyntaxTest as FieldNames<3>>::field_names();
     assert_eq!(
         names,
         [
@@ -302,17 +288,7 @@ fn rich_field_types_variants() {
     assert!(matches!(v, RichTypesFieldType::ResultField(Ok(42))));
 
     // All FieldName variants present
-    let dummy = RichTypes {
-        count: 0,
-        tags: vec![],
-        map: HashMap::new(),
-        pair: (0, 0),
-        fixed: [0.0; 4],
-        boxed: Box::new(0),
-        maybe: None,
-        result_field: Ok(0),
-    };
-    let names: [RichTypesFieldName; 8] = (&dummy).into();
+    let names = <RichTypes as FieldNames<8>>::field_names();
     assert_eq!(names[0], RichTypesFieldName::Count);
     assert_eq!(names[1], RichTypesFieldName::Tags);
     assert_eq!(names[2], RichTypesFieldName::Map);
@@ -393,15 +369,7 @@ fn complex_generics_field_type() {
 
 #[test]
 fn complex_generics_field_name() {
-    let c_val = "world".to_string();
-    let hidden_val = 0i32;
-    let s = MultiGeneric {
-        alpha: 42i32,
-        beta: true,
-        gamma: &c_val,
-        hidden: &hidden_val,
-    };
-    let names: [MultiGenericFieldName; 3] = (&s).into();
+    let names = <MultiGeneric<'_, i32, bool, String> as FieldNames<3>>::field_names();
     assert_eq!(
         names,
         [
@@ -426,7 +394,7 @@ fn single_field_struct() {
     let fields: [SingleFieldFieldType; 1] = s.into();
     assert_eq!(fields[0], SingleFieldFieldType::Only(7));
 
-    let names: [SingleFieldFieldName; 1] = (&SingleField { only: 0 }).into();
+    let names = <SingleField as FieldNames<1>>::field_names();
     assert_eq!(names[0], SingleFieldFieldName::Only);
 }
 
@@ -460,13 +428,7 @@ fn almost_all_skipped() {
         AlmostAllSkippedFieldType::Survivor("alive".to_string())
     );
 
-    let names: [AlmostAllSkippedFieldName; 1] = (&AlmostAllSkipped {
-        a: 0,
-        b: 0,
-        c: 0,
-        survivor: String::new(),
-    })
-        .into();
+    let names = <AlmostAllSkipped as FieldNames<1>>::field_names();
     assert_eq!(names[0], AlmostAllSkippedFieldName::Survivor);
 }
 
@@ -514,19 +476,7 @@ fn large_struct_field_order_preserved() {
     assert_eq!(fields[8], BigStructFieldType::FieldNine(9.0));
     assert_eq!(fields[9], BigStructFieldType::FieldTen(10.0));
 
-    let dummy = BigStruct {
-        field_one: 0,
-        field_two: 0,
-        field_three: 0,
-        field_four: 0,
-        field_five: 0,
-        field_six: 0,
-        field_seven: 0,
-        field_eight: 0,
-        field_nine: 0.0,
-        field_ten: 0.0,
-    };
-    let names: [BigStructFieldName; 10] = (&dummy).into();
+    let names = <BigStruct as FieldNames<10>>::field_names();
     assert_eq!(names[0], BigStructFieldName::FieldOne);
     assert_eq!(names[9], BigStructFieldName::FieldTen);
 }
@@ -629,15 +579,7 @@ fn combined_nested_field_type_and_name() {
     assert_eq!(fields[2], DocumentFieldType::Author("Alice".to_string()));
     assert_eq!(fields[3], DocumentFieldType::Content("World".to_string()));
 
-    let doc2 = Document {
-        title: "Hello".to_string(),
-        meta: Meta {
-            version: 2,
-            author: "Alice".to_string(),
-        },
-        content: "World".to_string(),
-    };
-    let names: [DocumentFieldName; 4] = (&doc2).into();
+    let names = <Document as FieldNames<4>>::field_names();
     assert_eq!(
         names,
         [
@@ -659,11 +601,9 @@ struct Reusable {
 
 #[test]
 fn field_name_borrows_struct() {
-    let s = Reusable { a: 1, b: 2 };
-    let names1: [ReusableFieldName; 2] = (&s).into();
-    let names2: [ReusableFieldName; 2] = (&s).into(); // s is still usable
+    let names1 = <Reusable as FieldNames<2>>::field_names();
+    let names2 = <Reusable as FieldNames<2>>::field_names();
     assert_eq!(names1, names2);
-    assert_eq!(s.a, 1); // s still accessible
 }
 
 // Match with all variants compiles correctly
@@ -757,8 +697,7 @@ fn public_struct_in_private_module() {
     assert_eq!(fields[0], PublicInPrivateFieldType::X(3));
     assert_eq!(fields[1], PublicInPrivateFieldType::Y(4));
 
-    let dummy = PublicInPrivate { x: 0, y: 0 };
-    let names: [PublicInPrivateFieldName; 2] = (&dummy).into();
+    let names = <PublicInPrivate as FieldNames<2>>::field_names();
     assert_eq!(
         names,
         [PublicInPrivateFieldName::X, PublicInPrivateFieldName::Y]
