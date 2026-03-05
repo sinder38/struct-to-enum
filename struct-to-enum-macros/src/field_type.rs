@@ -37,9 +37,7 @@ pub struct DeriveFieldType {
     generics: syn::Generics,
     derive_attr: Vec<TokenStream2>,
     extra_attrs: Vec<TokenStream2>,
-    ///
     slots: Vec<FieldSlot>,
-    // fields: Vec<FieldInfo>,
     type_snake: String,
 }
 
@@ -136,7 +134,7 @@ impl DeriveFieldType {
         let a = self.get_fields_for_simple();
 
         // Emitting here for simplicity
-        let entries = a.into_iter().map(|f| {
+        let entries = a.iter().map(|f| {
             let NormalField {
                 variant_ident,
                 field_ty,

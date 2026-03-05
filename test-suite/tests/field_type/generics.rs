@@ -125,4 +125,3 @@ fn multi_generic_field_type_from_explicit() {
     assert_eq!(fields[1], MultiGenericFieldType::Beta(true));
     assert_eq!(fields[2], MultiGenericFieldType::Gamma(&c_val));
 }
- w
