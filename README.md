@@ -1,15 +1,17 @@
-# struct-to-enum
+<div align="center">
+      <h1>Struct to enum</h1>
+    <h3>Generate enums from struct fields — ideal for type-safe query column filtering!</h3>
 
 [![Rust](https://github.com/sinder38/struct-to-enum/actions/workflows/ci.yml/badge.svg)](https://github.com/sinder38/struct-to-enum/actions/workflows/ci.yml)
 [![Latest Version](https://img.shields.io/crates/v/struct-to-enum.svg)](https://crates.io/crates/struct-to-enum)
 [![Rust Documentation](https://docs.rs/struct-to-enum/badge.svg)](https://docs.rs/struct-to-enum)
 ![Crates.io](https://img.shields.io/crates/d/struct-to-enum)
+  <br>Support by giving your ⭐!
 
-Derive macros for generating enums corresponding to the fields of structs.
+</div>
 
 ## Overview
-
-`struct-to-enum` provides two derive macros:
+`struct-to-enum` crate provides two derive macros for generating enums corresponding to the fields of structs:
 
 - **`FieldName`** — generates a unit enum where each variant represents a field name
 - **`FieldType`** — generates an enum where each variant wraps the type of a struct field
@@ -17,6 +19,12 @@ Derive macros for generating enums corresponding to the fields of structs.
 Both macros support generics, field skipping, nesting, and custom derives/attributes on the generated enum.
 
 Intended use-case is to generate enums from struct fields, enabling compile-time column filter validation for queries.
+
+## Quick Start
+```toml
+[dependencies]
+struct-to-enum = {version="1.0", features = ["derive"] }
+```
 
 ## Usage
 
@@ -210,18 +218,24 @@ assert_eq!(
 );
 ```
 
-## Inspired by:
+## Related Crates
 
-[Strum](https://github.com/Peternator7/strum)
-[Field Types](https://github.com/XX/field_types)
+- [field_types](https://github.com/XX/field_types) - the original inspiration for this crate.
+  `struct-to-enum` extends the idea with nesting, derive attributes, generics, and more.
+- [strum](https://github.com/Peternator7/strum) - solves a similar problem (enum utilities via derive macros);
+  a useful companion crate and a reference during development.
+  
+#### License
 
-## License
+<sup>
+Licensed under either of <a href="LICENSE-APACHE">Apache License, Version
+2.0</a> or <a href="LICENSE-MIT">MIT license</a> at your option.
+</sup>
 
-Licensed under either of
+<br>
 
--   Apache License, Version 2.0
-    ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
--   MIT license
-    ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
-
-at your option
+<sub>
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in struct-to-enum by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
+</sub>
