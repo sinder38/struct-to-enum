@@ -44,7 +44,7 @@ use syn::DeriveInput;
 ///
 /// # Example
 ///
-/// ```rust,no_run
+/// ```rust
 /// use struct_to_enum::FieldType;
 ///
 /// #[derive(Clone)]
@@ -72,7 +72,7 @@ use syn::DeriveInput;
 /// (which must also derive `FieldType`) directly into the parent enum. Nesting can be
 /// arbitrarily deep.
 ///
-/// ```rust,no_run
+/// ```rust
 /// use struct_to_enum::FieldType;
 ///
 /// #[derive(FieldType)]
@@ -104,7 +104,7 @@ use syn::DeriveInput;
 ///
 /// Generic structs are supported. The generated enum carries the same type parameters:
 ///
-/// ```rust,no_run
+/// ```rust
 /// use struct_to_enum::FieldType;
 ///
 /// #[derive(FieldType)]
@@ -125,7 +125,7 @@ use syn::DeriveInput;
 /// Use `#[stem_type_derive]` and `#[stem_type_attr]` to pass anything to the generated enum.
 /// This works with crates like [`strum`](https://docs.rs/strum):
 ///
-/// ```rust,no_run
+/// ```rust
 /// use struct_to_enum::FieldType;
 /// use strum::VariantNames;
 ///
