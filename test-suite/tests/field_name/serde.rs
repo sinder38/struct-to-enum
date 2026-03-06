@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-extern crate serde;
 extern crate struct_to_enum;
 
 use struct_to_enum::FieldName;

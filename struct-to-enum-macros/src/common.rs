@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::{ToTokens, quote};
+use quote::ToTokens;
 use syn::{Attribute, Fields, Ident, Meta, Type};
 
 use heck::ToUpperCamelCase;
@@ -30,7 +30,7 @@ pub fn get_meta_list(
             if meta.path().is_ident(attr_name) {
                 if let Meta::List(meta_list) = meta {
                     let tokens = &meta_list.tokens;
-                    result.push(quote! { #tokens });
+                    result.push(tokens.clone());
                 } else {
                     return Err(syn::Error::new_spanned(
                         attr,
@@ -125,4 +125,12 @@ pub fn extract_type_ident(ty: &Type) -> syn::Result<&Ident> {
             "nested attribute can only be used with named struct types",
         )),
     }
+}
+
+pub fn path_to_string(path: &syn::Path) -> String {
+    path.segments
+        .iter()
+        .map(|s| s.ident.to_string())
+        .collect::<Vec<_>>()
+        .join("::")
 }

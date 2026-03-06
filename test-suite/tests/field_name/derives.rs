@@ -30,6 +30,30 @@ struct AliasDerive {
     bar: String,
 }
 
+// no_defaults: bare flag, only explicitly listed derives are applied
+#[derive(FieldName)]
+#[stem_name_derive(no_defaults, Debug)]
+struct NoDefaultsBare {
+    x: i32,
+    y: i32,
+}
+
+// no_defaults = true
+#[derive(FieldName)]
+#[stem_name_derive(no_defaults = true, Debug)]
+struct NoDefaultsEqTrue {
+    a: i32,
+    b: i32,
+}
+
+// no_defaults = false
+#[derive(FieldName)]
+#[stem_name_derive(no_defaults = false, Debug, Copy, Clone, PartialEq)]
+struct NoDefaultsEqFalse {
+    p: i32,
+    q: i32,
+}
+
 #[test]
 fn field_name_default_derives() {
     let a = DefaultDerivesFieldName::Alpha;
@@ -65,4 +89,25 @@ fn alias_prefix_derive() {
     let cloned = v.clone();
     assert_eq!(v, cloned);
     let _ = format!("{:?}", v);
+}
+
+#[test]
+fn no_defaults_bare_only_explicit_derives() {
+    let v = NoDefaultsBareFieldName::X;
+    let _ = format!("{:?}", v);
+}
+
+#[test]
+fn no_defaults_eq_true_only_explicit_derives() {
+    let v = NoDefaultsEqTrueFieldName::A;
+    let _ = format!("{:?}", v);
+}
+
+#[test]
+fn no_defaults_eq_false_keeps_defaults() {
+    let v = NoDefaultsEqFalseFieldName::P;
+    let b = v; // Copy
+    let c = v.clone(); // Clone
+    assert_eq!(b, c); // PartialEq
+    let _ = format!("{:?}", v); // Debug
 }

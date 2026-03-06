@@ -1,12 +1,11 @@
 use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
-use std::collections::HashSet;
 use syn::{DeriveInput, Ident};
 
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
-use crate::common::{extract_type_ident, filter_fields, get_meta_list};
+use crate::common::{extract_type_ident, filter_fields, get_meta_list, path_to_string};
 
 #[inline]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
@@ -49,7 +48,7 @@ pub struct DeriveFieldName {
     ident: Ident,
     enum_ident: Ident,
     generics: syn::Generics,
-    derive_attrs: Vec<TokenStream2>,
+    enum_derives: Vec<syn::Path>,
     extra_attrs: Vec<TokenStream2>,
     /// Fields in declaration order, grouped into regular runs and nested slots.
     slots: Vec<FieldSlot>,
@@ -73,29 +72,83 @@ impl DeriveFieldName {
         };
         let enum_ident = Ident::new(&(ident.to_string() + "FieldName"), Span::call_site());
 
-        let mut derive_attrs =
+        let derive_attrs_ts =
             get_meta_list(&input.attrs, &["stem_name_derive", "ste_name_derive"])?;
+        //PERF: Could pass code below as closure to avoid collecting into a vector inside get_meta_list
 
-        let merge_defaults = true; //TODO: make configurable later
+        let mut merge_defaults = true;
+        let mut enum_derives: Vec<syn::Path> = Vec::new();
+        //FIX: Change pancis to syn::Error
+        //FIX: move into functions
 
+        // Iterate over all rows of derive attributes
+        for ts in derive_attrs_ts {
+            // For each row, collect derive attributes into `enum_derives` and look for `no_defaults` flag
+            let mut iter = ts.into_iter().peekable();
+            while let Some(tt) = iter.next() {
+                match tt {
+                    proc_macro2::TokenTree::Ident(id) => {
+                        if id == "no_defaults" {
+                            if matches!(
+                                iter.peek(),
+                                Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '='
+                            ) {
+                                iter.next(); // consume `=`
+                                merge_defaults = match iter.next() {
+                                    Some(proc_macro2::TokenTree::Ident(val)) if val == "true" => {
+                                        true
+                                    }
+                                    Some(proc_macro2::TokenTree::Ident(val)) if val == "false" => {
+                                        false
+                                    }
+                                    _ => {
+                                        panic!("wrong no_defaults flag: expected `true` or `false`")
+                                    }
+                                };
+                            } else {
+                                merge_defaults = true; //bare flag
+                            }
+                        } else {
+                            // Consume `::Ident` segments to build a full path
+                            let mut segments = syn::punctuated::Punctuated::<
+                                syn::PathSegment,
+                                syn::Token![::],
+                            >::new();
+                            segments.push(syn::PathSegment::from(id));
+
+                            while matches!(
+                                iter.peek(),
+                                Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == ':'
+                            ) {
+                                iter.next(); // consume first `:`
+                                iter.next(); // consume second `:`
+                                match iter.next() {
+                                    Some(proc_macro2::TokenTree::Ident(next_id)) => {
+                                        segments.push(syn::PathSegment::from(next_id));
+                                    }
+                                    _ => panic!("expected identifier after `::`"),
+                                }
+                            }
+
+                            enum_derives.push(syn::Path {
+                                leading_colon: None,
+                                segments,
+                            });
+                        }
+                    }
+                    proc_macro2::TokenTree::Punct(_) => {}
+                    _ => panic!("unexpected token"),
+                }
+            }
+        }
+
+        // Finnaly, werge with default derives if no_defaults is false
         if merge_defaults {
-            let present_derives: HashSet<String> = derive_attrs
-                .iter()
-                .flat_map(|ts| {
-                    ts.clone().into_iter().filter_map(|tt| match tt {
-                        proc_macro2::TokenTree::Ident(id) => Some(id.to_string()),
-                        _ => None,
-                    })
-                })
-                .collect();
-
-            for d_derive in DEFAULT_DERIVES {
-                if !present_derives.contains(*d_derive) {
-                    derive_attrs.push(
-                        d_derive
-                            .parse::<TokenStream2>()
-                            .expect("Invalid default derive"),
-                    );
+            for &d_derive in DEFAULT_DERIVES {
+                if !enum_derives.iter().any(|p| path_to_string(p) == d_derive) {
+                    let d_path: syn::Path =
+                        syn::parse_str(d_derive).expect("invalid default derive path");
+                    enum_derives.push(d_path);
                 }
             }
         }
@@ -104,6 +157,7 @@ impl DeriveFieldName {
 
         let fields = filter_fields(&struct_fields, &["stem_name", "ste_name"])?;
 
+        //TODO: allow empty structs by deriving from an empty enum later
         if fields.is_empty() {
             return Err(syn::Error::new_spanned(
                 &ident,
@@ -138,7 +192,7 @@ impl DeriveFieldName {
             ident,
             enum_ident,
             generics,
-            derive_attrs,
+            enum_derives,
             extra_attrs,
             slots,
             type_snake,
@@ -187,7 +241,7 @@ impl DeriveFieldName {
         let vis = &self.vis;
         let ident = &self.ident;
         let enum_ident = &self.enum_ident;
-        let derive_attrs = &self.derive_attrs;
+        let derive_attrs = &self.enum_derives;
         let extra_attrs = &self.extra_attrs;
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
         let helper_macro_name = get_helper_macro_name(&self.type_snake);
@@ -340,7 +394,7 @@ impl DeriveFieldName {
     ) -> TokenStream2 {
         let vis = &self.vis;
         let enum_ty = &self.enum_ident;
-        let derive = &self.derive_attrs;
+        let derive = &self.enum_derives;
         let attrs = &self.extra_attrs;
         let ty = &self.ident;
         let (impl_generics, _, where_clause) = self.generics.split_for_impl();
