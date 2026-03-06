@@ -1,5 +1,10 @@
 # struct-to-enum
 
+[![Rust](https://github.com/sinder38/struct-to-enum/actions/workflows/ci.yml/badge.svg)](https://github.com/sinder38/struct-to-enum/actions/workflows/ci.yml)
+[![Latest Version](https://img.shields.io/crates/v/struct-to-enum.svg)](https://crates.io/crates/struct-to-enum)
+[![Rust Documentation](https://docs.rs/struct-to-enum/badge.svg)](https://docs.rs/struct-to-enum)
+![Crates.io](https://img.shields.io/crates/d/struct-to-enum)
+
 Derive macros for generating enums corresponding to the fields of structs.
 
 ## Overview
