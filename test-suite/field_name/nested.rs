@@ -239,7 +239,6 @@ fn complex_fields_field_name() {
     use ABCDEFGHIJKLMNOPFieldName as AlpName;
     let a = ABCDEFGHIJKLMNOP::default();
     let letters: [AlpName; 16] = (&a).into();
-    //TODO: enable for order testing
 
     assert_eq!(
         letters,

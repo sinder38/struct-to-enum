@@ -76,82 +76,7 @@ impl DeriveFieldName {
             get_meta_list(&input.attrs, &["stem_name_derive", "ste_name_derive"])?;
         //PERF: Could pass code below as closure to avoid collecting into a vector inside get_meta_list
 
-        let mut merge_defaults = true;
-        let mut enum_derives: Vec<syn::Path> = Vec::new();
-        //FIX: Change pancis to syn::Error
-        //FIX: move into functions
-
-        // Iterate over all rows of derive attributes
-        for ts in derive_attrs_ts {
-            // For each row, collect derive attributes into `enum_derives` and look for `no_defaults` flag
-            let mut iter = ts.into_iter().peekable();
-            while let Some(tt) = iter.next() {
-                match tt {
-                    proc_macro2::TokenTree::Ident(id) => {
-                        if id == "no_defaults" {
-                            if matches!(
-                                iter.peek(),
-                                Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '='
-                            ) {
-                                iter.next(); // consume `=`
-                                merge_defaults = match iter.next() {
-                                    Some(proc_macro2::TokenTree::Ident(val)) if val == "true" => {
-                                        true
-                                    }
-                                    Some(proc_macro2::TokenTree::Ident(val)) if val == "false" => {
-                                        false
-                                    }
-                                    _ => {
-                                        panic!("wrong no_defaults flag: expected `true` or `false`")
-                                    }
-                                };
-                            } else {
-                                merge_defaults = true; //bare flag
-                            }
-                        } else {
-                            // Consume `::Ident` segments to build a full path
-                            let mut segments = syn::punctuated::Punctuated::<
-                                syn::PathSegment,
-                                syn::Token![::],
-                            >::new();
-                            segments.push(syn::PathSegment::from(id));
-
-                            while matches!(
-                                iter.peek(),
-                                Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == ':'
-                            ) {
-                                iter.next(); // consume first `:`
-                                iter.next(); // consume second `:`
-                                match iter.next() {
-                                    Some(proc_macro2::TokenTree::Ident(next_id)) => {
-                                        segments.push(syn::PathSegment::from(next_id));
-                                    }
-                                    _ => panic!("expected identifier after `::`"),
-                                }
-                            }
-
-                            enum_derives.push(syn::Path {
-                                leading_colon: None,
-                                segments,
-                            });
-                        }
-                    }
-                    proc_macro2::TokenTree::Punct(_) => {}
-                    _ => panic!("unexpected token"),
-                }
-            }
-        }
-
-        // Finnaly, werge with default derives if no_defaults is false
-        if merge_defaults {
-            for &d_derive in DEFAULT_DERIVES {
-                if !enum_derives.iter().any(|p| path_to_string(p) == d_derive) {
-                    let d_path: syn::Path =
-                        syn::parse_str(d_derive).expect("invalid default derive path");
-                    enum_derives.push(d_path);
-                }
-            }
-        }
+        let enum_derives = extract_enum_derives(derive_attrs_ts)?;
 
         let extra_attrs = get_meta_list(&input.attrs, &["stem_name_attr", "ste_name_attr"])?;
 
@@ -424,7 +349,7 @@ impl DeriveFieldName {
         }
     }
 
-    // TODO: for later
+    // TODO: for later (maybe could reuse implementation)
     #[allow(dead_code)]
     fn generate_field_names_impl(
         &self,
@@ -448,4 +373,95 @@ impl DeriveFieldName {
             }
         }
     }
+}
+
+fn extract_enum_derives(derive_attrs_ts: Vec<TokenStream2>) -> syn::Result<Vec<syn::Path>> {
+    let mut merge_defaults = true;
+    let mut enum_derives: Vec<syn::Path> = Vec::new();
+    for ts in derive_attrs_ts {
+        // For each row, collect derive attributes into `enum_derives` and look for `no_defaults` flag
+        let mut iter = ts.into_iter().peekable();
+        while let Some(tt) = iter.next() {
+            match tt {
+                proc_macro2::TokenTree::Ident(id) => {
+                    if id == "no_defaults" {
+                        if matches!(
+                            iter.peek(),
+                            Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '='
+                        ) {
+                            iter.next(); // consume `=`
+                            merge_defaults = match iter.next() {
+                                Some(proc_macro2::TokenTree::Ident(val)) if val == "true" => true,
+                                Some(proc_macro2::TokenTree::Ident(val)) if val == "false" => false,
+                                Some(unexpected) => {
+                                    return Err(syn::Error::new_spanned(
+                                        &unexpected,
+                                        "expected `true` or `false` for `no_defaults` flag",
+                                    ));
+                                }
+                                None => {
+                                    return Err(syn::Error::new(
+                                        proc_macro2::Span::call_site(),
+                                        "unexpected end of input: expected `true` or `false` after `no_defaults =`",
+                                    ));
+                                }
+                            };
+                        } else {
+                            merge_defaults = true; // bare flag
+                        }
+                    } else {
+                        // Consume `::Ident` segments to build a full path
+                        let mut segments =
+                            syn::punctuated::Punctuated::<syn::PathSegment, syn::Token![::]>::new();
+                        segments.push(syn::PathSegment::from(id));
+                        while matches!(
+                            iter.peek(),
+                            Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == ':'
+                        ) {
+                            iter.next(); // consume first `:`
+                            iter.next(); // consume second `:`
+                            match iter.next() {
+                                Some(proc_macro2::TokenTree::Ident(next_id)) => {
+                                    segments.push(syn::PathSegment::from(next_id));
+                                }
+                                Some(unexpected) => {
+                                    return Err(syn::Error::new_spanned(
+                                        &unexpected,
+                                        "expected identifier after `::`",
+                                    ));
+                                }
+                                None => {
+                                    return Err(syn::Error::new(
+                                        proc_macro2::Span::call_site(),
+                                        "unexpected end of input: expected identifier after `::`",
+                                    ));
+                                }
+                            }
+                        }
+                        enum_derives.push(syn::Path {
+                            leading_colon: None,
+                            segments,
+                        });
+                    }
+                }
+                proc_macro2::TokenTree::Punct(_) => {}
+                unexpected => {
+                    return Err(syn::Error::new_spanned(
+                        &unexpected,
+                        "unexpected token in derive attribute",
+                    ));
+                }
+            }
+        }
+    }
+    if merge_defaults {
+        for &d_derive in DEFAULT_DERIVES {
+            if !enum_derives.iter().any(|p| path_to_string(p) == d_derive) {
+                let d_path: syn::Path =
+                    syn::parse_str(d_derive).expect("invalid default derive path");
+                enum_derives.push(d_path);
+            }
+        }
+    }
+    Ok(enum_derives)
 }
