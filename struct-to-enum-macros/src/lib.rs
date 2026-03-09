@@ -165,6 +165,7 @@ pub fn field_type(input: TokenStream) -> TokenStream {
 /// field declaration order.
 ///
 /// The generated enum derives `Debug`, `PartialEq`, `Eq`, `Clone`, and `Copy` by default.
+/// They can be removed by adding `no_defaults` to the `stem_name_derive` attribute.
 /// Use `#[stem_name_derive(...)]` to add more derives - the defaults are merged with whatever
 /// you specify, so you only need to list derives not already in the default set.
 ///
