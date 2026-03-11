@@ -1,3 +1,5 @@
+#![no_std]
+
 #[cfg(feature = "derive")]
 pub use struct_to_enum_macros::*;
 
