@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::ToTokens;
+use quote::quote;
 use syn::{Attribute, Fields, Ident, Meta, Type};
 
 use heck::ToUpperCamelCase;
@@ -133,4 +134,12 @@ pub fn path_to_string(path: &syn::Path) -> String {
         .map(|s| s.ident.to_string())
         .collect::<Vec<_>>()
         .join("::")
+}
+
+/// Returns a token stream that counts the number of variants in an enum using macro_rules!
+/// Uses field with the name `variant` to count!
+pub fn macro_rules_field_counter() -> TokenStream2 {
+    quote! {
+        { [$(stringify!($variant),)*].len() }
+    }
 }

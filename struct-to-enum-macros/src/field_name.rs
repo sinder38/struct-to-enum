@@ -5,8 +5,12 @@ use syn::{DeriveInput, Ident, Path};
 
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
-use crate::common::{extract_type_ident, filter_fields, get_meta_list, path_to_string};
+use crate::common::{
+    extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter, path_to_string,
+};
 
+/// Returns the hidden helper macro identifier used to forward field-name entries
+/// from a nested type's expansion up to its parent's accumulator
 #[inline]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
     Ident::new(
@@ -59,6 +63,7 @@ pub struct DeriveFieldName {
 }
 
 impl DeriveFieldName {
+    /// Parses DeriveInput and collects data into [`DeriveFieldName`]
     pub fn new(input: DeriveInput) -> syn::Result<Self> {
         let vis = input.vis;
         let ident = input.ident;
@@ -127,6 +132,8 @@ impl DeriveFieldName {
         })
     }
 
+    /// Generates the derived `FieldName` enum and its implmentations
+    /// uses either simple or nested expansion path.
     pub fn expand(&self) -> syn::Result<TokenStream2> {
         let has_nested = self.slots.iter().any(|s| matches!(s, FieldSlot::Nested(_)));
         if has_nested {
@@ -136,6 +143,8 @@ impl DeriveFieldName {
         }
     }
 
+    /// Returns the flat list of `FieldNamePair`s
+    /// Only valid when there are no nested slots (expant_simple)
     fn get_fields_for_simple(&self) -> &Vec<FieldNamePair> {
         //PERF: this function is called several times instead of once
         debug_assert_eq!(self.slots.len(), 1);
@@ -145,6 +154,7 @@ impl DeriveFieldName {
         }
     }
 
+    /// Expands with no nested fields
     fn expand_simple(&self) -> syn::Result<TokenStream2> {
         // No nested fields-  exactly one Regular slot.
         let pairs = self.get_fields_for_simple();
@@ -191,6 +201,8 @@ impl DeriveFieldName {
         })
     }
 
+    /// Expands the struct with one or more nested fields using a chain of step macros
+    /// that accumulate `Variant => "name"` pairs
     fn expand_nested(&self) -> syn::Result<TokenStream2> {
         let type_snake = &self.type_snake;
 
@@ -271,11 +283,10 @@ impl DeriveFieldName {
         let enum_derives = &self.enum_derives;
 
         // Parts
-        let variant_count =
-            quote! {{ let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }};
+        let variant_counter = macro_rules_field_counter();
         let enum_def = self.gen_enum_def(enum_derives, &[quote!($($variant),*)]);
         let field_names_impl =
-            self.gen_field_names_impl(&[quote!($(#enum_ty::$variant),*)], variant_count);
+            self.gen_field_names_impl(&[quote!($(#enum_ty::$variant),*)], variant_counter);
 
         quote! {
             #[doc(hidden)]
@@ -288,6 +299,7 @@ impl DeriveFieldName {
         }
     }
 
+    /// Generates the enum definition
     fn gen_enum_def(&self, derive_attrs: &Vec<Path>, variants: &[TokenStream2]) -> TokenStream2 {
         let vis = &self.vis;
         let enum_ident = &self.enum_ident;
@@ -301,6 +313,8 @@ impl DeriveFieldName {
         }
     }
 
+    /// Generates the `impl FieldNames<N> for OriginalStruct` block
+    /// variant_counter has to be `Tokenstream2` because nested enum field names aren't known at derive macro level
     fn gen_field_names_impl(
         &self,
         constructs: &[TokenStream2],
@@ -324,6 +338,8 @@ impl DeriveFieldName {
     }
 }
 
+/// Parses the token streams from macro attributes into a list of derive paths, respecting the `no_defaults` flag and
+/// merging with `DEFAULT_DERIVES`
 fn extract_enum_derives(derive_attrs_ts: Vec<TokenStream2>) -> syn::Result<Vec<syn::Path>> {
     let mut merge_defaults = true;
     let mut enum_derives: Vec<syn::Path> = Vec::new();
@@ -415,6 +431,7 @@ fn extract_enum_derives(derive_attrs_ts: Vec<TokenStream2>) -> syn::Result<Vec<s
     Ok(enum_derives)
 }
 
+/// Wraps body in a this_step macro_rules
 fn make_step_macro(this_step: &Ident, body: TokenStream2) -> TokenStream2 {
     quote! {
         #[doc(hidden)]

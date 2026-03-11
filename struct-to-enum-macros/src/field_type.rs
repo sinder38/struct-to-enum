@@ -3,7 +3,7 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{DeriveInput, Ident, Type};
 
-use crate::common::{extract_type_ident, filter_fields, get_meta_list};
+use crate::common::{extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter};
 
 #[inline]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
@@ -295,6 +295,7 @@ impl DeriveFieldType {
         let ty = &self.ident;
         let (impl_generics, _, where_clause) = self.generics.split_for_impl();
 
+        let variant_counter = macro_rules_field_counter();
         quote! {
             #[doc(hidden)]
             macro_rules! #macro_name {
@@ -305,7 +306,7 @@ impl DeriveFieldType {
                         $($variant($vty)),*
                     }
 
-                    impl #impl_generics From<#ty #ty_generics> for [#enum_ty #ty_generics; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }]
+                    impl #impl_generics From<#ty #ty_generics> for [#enum_ty #ty_generics; #variant_counter]
                         #where_clause
                     {
                         fn from(source: #ty #ty_generics) -> Self {
@@ -414,6 +415,7 @@ impl DeriveFieldType {
         quote! {
             impl #impl_generics #ident #ty_generics
                 #where_clause
+
             {
                 #vis fn into_field_type_array(self) -> [#enum_ident #ty_generics; #fields_count] {
                     let #destructuring = self;
