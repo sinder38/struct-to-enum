@@ -1,7 +1,7 @@
 use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::{DeriveInput, Ident};
+use syn::{DeriveInput, Ident, Path};
 
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
@@ -44,8 +44,11 @@ impl FieldSlot {
 }
 
 pub struct DeriveFieldName {
+    /// Visibility of the generated enum
     vis: syn::Visibility,
+    /// Origin struct Ident
     ident: Ident,
+    /// Generated Enum Ident
     enum_ident: Ident,
     generics: syn::Generics,
     enum_derives: Vec<syn::Path>,
@@ -146,15 +149,16 @@ impl DeriveFieldName {
         // No nested fields-  exactly one Regular slot.
         let pairs = self.get_fields_for_simple();
         let entries = FieldSlot::entries(pairs);
-        let variants: Vec<&Ident> = pairs
+        let variants: Vec<TokenStream2> = pairs
             .iter()
             .map(
                 |FieldNamePair {
                      variant_ident,
                      field_name: _,
-                 }| variant_ident,
+                 }| quote! {#variant_ident},
             )
             .collect();
+        let variant_count = variants.len();
         let constructs: Vec<TokenStream2> = variants
             .iter()
             .map(|v| {
@@ -163,15 +167,10 @@ impl DeriveFieldName {
             })
             .collect();
 
-        let vis = &self.vis;
-        let ident = &self.ident;
-        let enum_ident = &self.enum_ident;
         let derive_attrs = &self.enum_derives;
-        let extra_attrs = &self.extra_attrs;
-        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
         let helper_macro_name = get_helper_macro_name(&self.type_snake);
-        let variant_count = pairs.len();
 
+        // Parts
         let own_helper = quote! {
             #[doc(hidden)]
             #[macro_export]
@@ -181,32 +180,18 @@ impl DeriveFieldName {
                 };
             }
         };
+        let variant_counter = quote! { #variant_count };
+        let enum_def = self.gen_enum_def(derive_attrs, &variants);
+        let field_names_impl = self.gen_field_names_impl(&constructs, variant_counter);
 
         Ok(quote! {
-            #[derive(#(#derive_attrs),*)]
-            #(#[#extra_attrs])*
-            #vis enum #enum_ident {
-                #(#variants),*
-            }
-
-            #[automatically_derived]
-            impl #impl_generics ::struct_to_enum::FieldNames<#variant_count>
-                for #ident #ty_generics
-                #where_clause
-            {
-                type FieldName = #enum_ident;
-                fn field_names() -> [Self::FieldName; #variant_count] {
-                    [#(#constructs),*]
-                }
-            }
-
+            #enum_def
+            #field_names_impl
             #own_helper
-
         })
     }
 
     fn expand_nested(&self) -> syn::Result<TokenStream2> {
-        let (_impl_generics, ty_generics, _where_clause) = self.generics.split_for_impl();
         let type_snake = &self.type_snake;
 
         let builder_macro_name = Ident::new(
@@ -214,8 +199,7 @@ impl DeriveFieldName {
             Span::call_site(),
         );
 
-        let builder_macro =
-            self.generate_field_name_builder_macro(&builder_macro_name, &ty_generics);
+        let builder_macro = self.generate_field_name_builder_macro(&builder_macro_name);
 
         // Generate one step macro per slot in declaration order.
         // Step i receives ($callback:tt; $($acc:tt)*) and then passes the updated
@@ -233,56 +217,26 @@ impl DeriveFieldName {
             let this_step = step_name(i);
             let is_last = i == num_slots - 1;
 
-            match slot {
+            let next = (!is_last).then(|| step_name(i + 1));
+
+            let step_macro_body = match slot {
                 FieldSlot::Regular(pairs) => {
                     let entries = FieldSlot::entries(pairs);
-                    if is_last {
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; $($acc:tt)*) => {
-                                    $callback!{$($acc)* #(#entries,)*}
-                                };
-                            }
-                        });
-                    } else {
-                        let next = step_name(i + 1);
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; $($acc:tt)*) => {
-                                    #next!{$callback; $($acc)* #(#entries,)*}
-                                };
-                            }
-                        });
+                    match next {
+                        None => quote! { $callback!{$($acc)* #(#entries,)*} },
+                        Some(next) => quote! { #next!{$callback; $($acc)* #(#entries,)*} },
                     }
                 }
-                FieldSlot::Nested(helper_mac) => {
-                    if is_last {
-                        // Last slot: call nested helper with $callback
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; $($acc:tt)*) => {
-                                    #helper_mac!{$callback; $($acc)*}
-                                };
-                            }
-                        });
-                    } else {
-                        // Non-last: nested helper's callback is the next step,
-                        // which receives $callback as its first arg
-                        let next = step_name(i + 1);
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; $($acc:tt)*) => {
-                                    #helper_mac!{#next; $callback; $($acc)*}
-                                };
-                            }
-                        });
-                    }
-                }
-            }
+                FieldSlot::Nested(helper_mac) => match next {
+                    // Last slot: call nested helper with $callback
+                    None => quote! { #helper_mac!{$callback; $($acc)*} },
+                    // Non-last: nested helper's callback is the next step,
+                    // which receives $callback as its first arg
+                    Some(next) => quote! { #helper_mac!{#next; $callback; $($acc)*} },
+                },
+            };
+
+            step_macros.push(make_step_macro(&this_step, step_macro_body));
         }
 
         // Build: step 0 with the builder as callback
@@ -312,63 +266,58 @@ impl DeriveFieldName {
 
     /// Emit the builder macro that, once it has the full flat list of
     /// `Variant => "field_name"` pairs, generates the enum and `From` impl.
-    fn generate_field_name_builder_macro(
-        &self,
-        macro_name: &Ident,
-        ty_generics: &syn::TypeGenerics,
-    ) -> TokenStream2 {
-        let vis = &self.vis;
+    fn generate_field_name_builder_macro(&self, macro_name: &Ident) -> TokenStream2 {
         let enum_ty = &self.enum_ident;
-        let derive = &self.enum_derives;
-        let attrs = &self.extra_attrs;
-        let ty = &self.ident;
-        let (impl_generics, _, where_clause) = self.generics.split_for_impl();
+        let enum_derives = &self.enum_derives;
+
+        // Parts
+        let variant_count =
+            quote! {{ let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }};
+        let enum_def = self.gen_enum_def(enum_derives, &[quote!($($variant),*)]);
+        let field_names_impl =
+            self.gen_field_names_impl(&[quote!($(#enum_ty::$variant),*)], variant_count);
+
         quote! {
             #[doc(hidden)]
             macro_rules! #macro_name {
                 ($($variant:ident => $name_str:expr,)*) => {
-                    #[derive(#(#derive),*)]
-                    #(#[#attrs])*
-                    #vis enum #enum_ty {
-                        $($variant),*
-                    }
-
-                    #[automatically_derived]
-                    impl #impl_generics ::struct_to_enum::FieldNames<{ let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }>
-                    for #ty #ty_generics
-                    #where_clause
-                    {
-                        type  FieldName = #enum_ty;
-                        fn field_names() -> [Self::FieldName; { let mut _n = 0usize; $({ let _ = stringify!($variant); _n += 1; })* _n }] {
-                            [$(#enum_ty::$variant),*]
-                        }
-                    }
-
+                    #enum_def
+                    #field_names_impl
                 };
             }
         }
     }
 
-    // TODO: for later (maybe could reuse implementation)
-    #[allow(dead_code)]
-    fn generate_field_names_impl(
-        &self,
-        ty_generics: &syn::TypeGenerics,
-        variants: TokenStream2,
-    ) -> TokenStream2 {
-        let variant_count = self.slots.len();
-        let ty = &self.ident;
-        let (impl_generics, _, where_clause) = self.generics.split_for_impl();
-        let enum_ty = &self.enum_ident;
+    fn gen_enum_def(&self, derive_attrs: &Vec<Path>, variants: &[TokenStream2]) -> TokenStream2 {
+        let vis = &self.vis;
+        let enum_ident = &self.enum_ident;
+        let extra_attrs = &self.extra_attrs;
         quote! {
-            impl #impl_generics ::struct_to_enum::FieldNames<#variant_count>
-            for #ty #ty_generics
-            #where_clause
+            #[derive(#(#derive_attrs),*)]
+            #(#[#extra_attrs])*
+            #vis enum #enum_ident {
+                #(#variants),*
+            }
+        }
+    }
+
+    fn gen_field_names_impl(
+        &self,
+        constructs: &[TokenStream2],
+        variant_counter: TokenStream2,
+    ) -> TokenStream2 {
+        let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
+        let ident = &self.ident;
+        let enum_ident = &self.enum_ident;
+        quote! {
+            #[automatically_derived]
+            impl #impl_generics ::struct_to_enum::FieldNames<#variant_counter>
+                for #ident #ty_generics
+                #where_clause
             {
-                type  FieldName = #enum_ty;
-                fn field_names() -> [Self::FieldName; #variant_count] {
-                    [$(#enum_ty::$variant),*]
-                        #variants
+                type FieldName = #enum_ident;
+                fn field_names() -> [Self::FieldName; #variant_counter] {
+                    [#(#constructs),*]
                 }
             }
         }
@@ -464,4 +413,13 @@ fn extract_enum_derives(derive_attrs_ts: Vec<TokenStream2>) -> syn::Result<Vec<s
         }
     }
     Ok(enum_derives)
+}
+
+fn make_step_macro(this_step: &Ident, body: TokenStream2) -> TokenStream2 {
+    quote! {
+        #[doc(hidden)]
+        macro_rules! #this_step {
+            ($callback:tt; $($acc:tt)*) => { #body };
+        }
+    }
 }
