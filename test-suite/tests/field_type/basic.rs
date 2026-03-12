@@ -175,7 +175,7 @@ fn skip_both_syntaxes() {
 #[test]
 fn single_field_struct() {
     let s = SingleField { only: 7 };
-    let fields: [SingleFieldFieldType; 1] = s.clone().into();
+    let fields: [SingleFieldFieldType; 1] = s.into();
     assert_eq!(fields[0], SingleFieldFieldType::Only(7));
 }
 
