@@ -63,13 +63,6 @@ impl DeriveFieldType {
 
         let fields = filter_fields(&struct_fields, &["stem_type", "ste_type"])?;
 
-        if fields.is_empty() {
-            return Err(syn::Error::new_spanned(
-                &ident,
-                "FieldType can only be derived for non-empty structs",
-            ));
-        }
-
         let type_snake = ident.to_string().to_snake_case();
         // PERF: merge filte_fields and slot conversion.
 
@@ -160,10 +153,10 @@ impl DeriveFieldType {
         })
     }
 
-    fn get_fields_for_simple(&self) -> &Vec<NormalField> {
+    fn get_fields_for_simple(&self) -> &[NormalField] {
         //PERF: this function is called several times instead of once
-        debug_assert_eq!(self.slots.len(), 1);
         match &self.slots[..] {
+            &[] => &[],
             [FieldSlot::Regular(p)] => p,
             _ => unreachable!("expand_simple called with nested slots"),
         }

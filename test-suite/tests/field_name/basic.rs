@@ -97,6 +97,11 @@ struct ExhaustStruct {
     ddd: u64,
 }
 
+// Empty Struct
+
+#[derive(FieldName)]
+struct EmptyStruct {}
+
 fn match_field_name(v: ExhaustStructFieldName) -> &'static str {
     match v {
         ExhaustStructFieldName::Aaa => "aaa",
@@ -214,4 +219,10 @@ fn field_names_trait_method() {
     assert_eq!(names, [ReusableFieldName::A, ReusableFieldName::B]);
     // Struct is still accessible after the call
     assert_eq!(s.a, 1);
+}
+
+#[test]
+fn field_names_empty() {
+    let names = <EmptyStruct as FieldNames<0>>::field_names();
+    assert_eq!(names.len(), 0);
 }

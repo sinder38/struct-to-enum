@@ -90,14 +90,6 @@ impl DeriveFieldName {
 
         let fields = filter_fields(&struct_fields, &["stem_name", "ste_name"])?;
 
-        //TODO: allow empty structs by deriving from an empty enum later
-        if fields.is_empty() {
-            return Err(syn::Error::new_spanned(
-                &ident,
-                "FieldName can only be derived for non-empty structures",
-            ));
-        }
-
         let type_snake = ident.to_string().to_snake_case();
 
         // Build declaration-order slots: merge consecutive regular fields into one Regular slot.
@@ -145,10 +137,11 @@ impl DeriveFieldName {
 
     /// Returns the flat list of `FieldNamePair`s
     /// Only valid when there are no nested slots (expant_simple)
-    fn get_fields_for_simple(&self) -> &Vec<FieldNamePair> {
+    fn get_fields_for_simple(&self) -> &[FieldNamePair] {
         //PERF: this function is called several times instead of once
-        debug_assert_eq!(self.slots.len(), 1);
+        // debug_assert_eq!(self.slots.len(), 1);
         match &self.slots[..] {
+            &[] => &[],
             [FieldSlot::Regular(p)] => p,
             _ => unreachable!("expand_simple called with nested slots"),
         }

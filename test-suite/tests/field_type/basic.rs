@@ -108,6 +108,11 @@ struct Pair {
     second: &'static str,
 }
 
+// Empty Struct
+
+#[derive(FieldType)]
+struct EmptyStruct {}
+
 #[test]
 fn full_field_type_variants() {
     let _field = TestFieldType::First(2);
@@ -170,7 +175,7 @@ fn skip_both_syntaxes() {
 #[test]
 fn single_field_struct() {
     let s = SingleField { only: 7 };
-    let fields: [SingleFieldFieldType; 1] = s.into();
+    let fields: [SingleFieldFieldType; 1] = s.clone().into();
     assert_eq!(fields[0], SingleFieldFieldType::Only(7));
 }
 
@@ -234,4 +239,11 @@ fn field_type_from_and_into_both_work() {
     assert_eq!(by_into[1], by_from[1]);
     assert_eq!(by_into[0], PairFieldType::First(10));
     assert_eq!(by_into[1], PairFieldType::Second("hi"));
+}
+
+#[test]
+fn field_names_empty() {
+    let s = EmptyStruct {};
+    let by_from: [EmptyStructFieldType; 0] = <[EmptyStructFieldType; 0]>::from(s);
+    assert_eq!(by_from.len(), 0);
 }
