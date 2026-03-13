@@ -14,9 +14,25 @@ fn get_helper_macro_name(type_snake: &str) -> Ident {
 }
 
 struct NormalField {
+    /// Generated enum field name usually
     variant_ident: Ident,
+    /// Original struct field name
     field_ident: Ident,
+    /// Original struct field type
     field_ty: Type,
+}
+
+impl std::fmt::Debug for NormalField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NormalField")
+            .field("variant_ident", &self.variant_ident)
+            .field("field_ident", &self.field_ident)
+            .field(
+                "field_ty",
+                &quote::ToTokens::to_token_stream(&self.field_ty).to_string(),
+            )
+            .finish()
+    }
 }
 
 /// A single field slot in declaration order
@@ -174,7 +190,6 @@ impl DeriveFieldType {
         let builder_macro =
             self.generate_field_type_builder_macro(&builder_macro_name, &ty_generics);
 
-        // Generate step macros
         let num_slots = self.slots.len();
         let step_name = |i: usize| {
             Ident::new(
@@ -183,12 +198,22 @@ impl DeriveFieldType {
             )
         };
 
-        let mut step_macros: Vec<TokenStream2> = Vec::new();
+        // Just invokes the callback with accumulated tokens.
+        let terminal = step_name(num_slots);
+        let mut step_macros = vec![quote! {
+            #[doc(hidden)]
+            macro_rules! #terminal {
+                ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
+                    $callback!{$($acc)*}
+                };
+            }
+        }];
+
         for (i, slot) in self.slots.iter().enumerate() {
             let this_step = step_name(i);
-            let is_last = i == num_slots - 1;
+            let next = step_name(i + 1);
 
-            match slot {
+            let body = match slot {
                 FieldSlot::Regular(triples) => {
                     let entries = triples.iter().map(
                         |NormalField {
@@ -199,61 +224,33 @@ impl DeriveFieldType {
                             quote! { #variant_ident(#field_ty) { $($pfx)* . #field_ident }, }
                         },
                     );
-
-                    if is_last {
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
-                                    $callback!{$($acc)* #(#entries)*}
-                                };
-                            }
-                        });
-                    } else {
-                        let next = step_name(i + 1);
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
-                                    #next!{$callback; { $($pfx)* }; $($acc)* #(#entries)*}
-                                };
-                            }
-                        });
+                    quote! {
+                        #next!{$callback; { $($pfx)* }; $($acc)* #(#entries)*}
                     }
                 }
                 FieldSlot::Nested {
                     helper_macro,
                     field_ident,
                 } => {
-                    if is_last {
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
-                                    #helper_macro!{$callback; { $($pfx)* . #field_ident }; $($acc)*}
-                                };
-                            }
-                        });
-                    } else {
-                        let next = step_name(i + 1);
-                        step_macros.push(quote! {
-                            #[doc(hidden)]
-                            macro_rules! #this_step {
-                                ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
-                                    #helper_macro!{#next; { $($pfx)* . #field_ident }; $callback; { $($pfx)* }; $($acc)*}
-                                };
-                            }
-                        });
+                    quote! {
+                        #helper_macro!{#next; { $($pfx)* . #field_ident }; $callback; { $($pfx)* }; $($acc)*}
                     }
                 }
-            }
+            };
+
+            step_macros.push(quote! {
+                #[doc(hidden)]
+                macro_rules! #this_step {
+                    ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
+                        #body
+                    };
+                }
+            });
         }
 
-        // Build: step 0 with builder as callback, empty prefix
         let step_0 = step_name(0);
         let invocation = quote! { #step_0!{#builder_macro_name; {}; } };
 
-        // Own helper for when this type is nested in a grandparent
         let helper_macro_name = get_helper_macro_name(type_snake);
         let own_helper = quote! {
             #[doc(hidden)]
