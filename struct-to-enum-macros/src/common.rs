@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::ToTokens;
+#[cfg(any(feature = "nested-type", feature = "nested-name"))]
 use quote::quote;
 use syn::{Attribute, Fields, Ident, Meta, Type};
 
@@ -149,6 +150,7 @@ fn has_attr_with_value(attr: &Attribute, attr_names: &[&str], expected: &str) ->
 }
 
 /// Extract the type name from a path
+#[cfg(any(feature = "nested-type", feature = "nested-name"))]
 pub fn extract_type_ident(ty: &Type) -> syn::Result<&Ident> {
     match ty {
         Type::Path(type_path) => type_path
@@ -174,6 +176,7 @@ pub fn path_to_string(path: &syn::Path) -> String {
 
 /// Returns a token stream that counts the number of variants in an enum using macro_rules!
 /// Uses field with the name `variant` to count!
+#[cfg(any(feature = "nested-type", feature = "nested-name"))]
 pub fn macro_rules_field_counter() -> TokenStream2 {
     quote! {
         { [$(stringify!($variant),)*].len() }

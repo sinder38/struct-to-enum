@@ -1,13 +1,14 @@
+#[cfg(feature = "nested-type")]
 use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{DeriveInput, Ident, Type};
 
-use crate::common::{
-    DeriveVariant, extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter,
-};
+use crate::common::{DeriveVariant, filter_fields, get_meta_list};
+#[cfg(feature = "nested-type")]
+use crate::common::{extract_type_ident, macro_rules_field_counter};
 
-#[inline]
+#[cfg(feature = "nested-type")]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
     Ident::new(
         &format!("__{}_field_type_variants", type_snake),
@@ -42,6 +43,7 @@ enum FieldSlot {
     /// One or more consecutive regular fields: (variant_ident, field_ident, field_type)
     Regular(Vec<NormalField>),
     /// A nested field - calls to the inner type's helper macro
+    #[cfg(feature = "nested-type")]
     Nested {
         helper_macro: Ident,
         field_ident: Ident,
@@ -56,6 +58,7 @@ pub struct DeriveFieldType {
     derive_attr: Vec<TokenStream2>,
     extra_attrs: Vec<TokenStream2>,
     slots: Vec<FieldSlot>,
+    #[cfg(feature = "nested-type")]
     type_snake: String,
 }
 
@@ -85,6 +88,7 @@ impl DeriveFieldType {
             DeriveVariant::Type,
         )?;
 
+        #[cfg(feature = "nested-type")]
         let type_snake = ident.to_string().to_snake_case();
         // PERF: merge filte_fields and slot conversion.
 
@@ -121,6 +125,7 @@ impl DeriveFieldType {
             derive_attr,
             extra_attrs,
             slots,
+            #[cfg(feature = "nested-type")]
             type_snake,
         })
     }
@@ -148,24 +153,19 @@ impl DeriveFieldType {
         let enum_def = self.enum_definition();
         let converter = self.converter_impl();
 
-        let type_snake = &self.type_snake;
-        let helper_macro_name = get_helper_macro_name(type_snake);
-
-        let a = self.get_fields_for_simple();
-
-        // Emitting here for simplicity
-        let entries = a.iter().map(|f| {
-            let NormalField {
-                variant_ident,
-                field_ty,
-                field_ident,
-            } = f;
-            quote! { #variant_ident(#field_ty) { $($pfx)* . #field_ident }, }
-        });
-
-        // If nested-type or nested-name feature is enabled, emit the helper macro
         #[cfg(feature = "nested-type")]
         {
+            let type_snake = &self.type_snake;
+            let helper_macro_name = get_helper_macro_name(type_snake);
+            let a = self.get_fields_for_simple();
+            let entries = a.iter().map(|f| {
+                let NormalField {
+                    variant_ident,
+                    field_ty,
+                    field_ident,
+                } = f;
+                quote! { #variant_ident(#field_ty) { $($pfx)* . #field_ident }, }
+            });
             let own_helper = quote! {
                 #[doc(hidden)]
                 #[macro_export]
@@ -175,7 +175,6 @@ impl DeriveFieldType {
                     };
                 }
             };
-
             Ok(quote! {
                 #enum_def
                 #converter
@@ -184,12 +183,10 @@ impl DeriveFieldType {
         }
 
         #[cfg(not(feature = "nested-type"))]
-        {
-            Ok(quote! {
-                #enum_def
-                #converter
-            })
-        }
+        Ok(quote! {
+            #enum_def
+            #converter
+        })
     }
 
     fn get_fields_for_simple(&self) -> &[NormalField] {

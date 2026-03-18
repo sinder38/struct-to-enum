@@ -73,6 +73,7 @@ use syn::DeriveInput;
 /// arbitrarily deep.
 ///
 /// ```rust
+/// # #[cfg(feature = "nested-type")] {
 /// use struct_to_enum::FieldType;
 ///
 /// #[derive(FieldType)]
@@ -98,6 +99,7 @@ use syn::DeriveInput;
 /// let fields: [PixelFieldType; 5] = p.into();
 /// assert_eq!(fields[0], PixelFieldType::X(10));
 /// assert_eq!(fields[2], PixelFieldType::R(255));
+/// }
 /// ```
 ///
 /// # Generics
@@ -215,6 +217,7 @@ pub fn field_type(input: TokenStream) -> TokenStream {
 /// arbitrarily deep.
 ///
 /// ```rust
+/// # #[cfg(feature = "nested-name")] {
 /// use struct_to_enum::{FieldName, FieldNames};
 ///
 /// #[derive(FieldName)]
@@ -234,6 +237,7 @@ pub fn field_type(input: TokenStream) -> TokenStream {
 ///
 /// let fields: [PersonFieldName; 3] = Person::field_names();
 /// assert_eq!(fields, [PersonFieldName::Name, PersonFieldName::Street, PersonFieldName::City]);
+/// # }
 /// ```
 ///
 /// # Generics

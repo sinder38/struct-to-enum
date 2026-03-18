@@ -5,14 +5,10 @@ use syn::{DeriveInput, Ident, Path};
 
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
-use crate::common::{
-    DeriveVariant, extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter,
-    path_to_string,
-};
+use crate::common::{DeriveVariant, filter_fields, get_meta_list, path_to_string};
+#[cfg(feature = "nested-name")]
+use crate::common::{extract_type_ident, macro_rules_field_counter};
 
-/// Returns the hidden helper macro identifier used to forward field-name entries
-/// from a nested type's expansion up to its parent's accumulator
-#[inline]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
     Ident::new(
         &format!("__{}_field_name_variants", type_snake),
@@ -30,6 +26,7 @@ enum FieldSlot {
     /// One or more consecutive regular fields: (variant_ident, field_name)
     Regular(Vec<FieldNamePair>),
     /// A nested field - calls to the inner type's helper macro
+    #[cfg(feature = "nested-name")]
     Nested(Ident),
 }
 
@@ -100,7 +97,7 @@ impl DeriveFieldName {
         // Build declaration-order slots: merge consecutive regular fields into one Regular slot.
         let mut slots: Vec<FieldSlot> = Vec::new();
         for f in &fields {
-            #[cfg(feature = "nested-type")]
+            #[cfg(feature = "nested-name")]
             if f.is_nested {
                 let inner_type_ident = extract_type_ident(&f.field_ty)?;
                 let inner_snake = inner_type_ident.to_string().to_snake_case();
@@ -288,6 +285,7 @@ impl DeriveFieldName {
 
     /// Emit the builder macro that, once it has the full flat list of
     /// `Variant => "field_name"` pairs, generates the enum and `From` impl.
+    #[cfg(feature = "nested-name")]
     fn generate_field_name_builder_macro(&self, macro_name: &Ident) -> TokenStream2 {
         let enum_ty = &self.enum_ident;
         let enum_derives = &self.enum_derives;
@@ -442,6 +440,7 @@ fn extract_enum_derives(derive_attrs_ts: Vec<TokenStream2>) -> syn::Result<Vec<s
 }
 
 /// Wraps body in a this_step macro_rules
+#[cfg(feature = "nested-name")]
 fn make_step_macro(this_step: &Ident, body: TokenStream2) -> TokenStream2 {
     quote! {
         #[doc(hidden)]
