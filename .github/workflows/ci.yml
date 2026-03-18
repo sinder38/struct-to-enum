@@ -11,6 +11,11 @@ on:
     branches:
       - main
       - ci-*
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
 
 env:
   RUST_TOOLCHAIN: "1.71.0" # Should be the same as in the crate

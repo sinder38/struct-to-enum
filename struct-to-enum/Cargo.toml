@@ -1,6 +1,6 @@
 [package]
 name = "struct-to-enum"
-version = "1.1.1"
+version = "1.1.2"
 rust-version = "1.71.0"
 authors = ["Sinder <smirnov.sinder@gmail.com>"]
 description = "Derive macros to generate enums from struct fields - compile-time safe field selection and dispatch"
@@ -12,7 +12,7 @@ keywords = ["derive", "macro", "enum", "struct", "field"]
 categories = ["development-tools::procedural-macro-macros", "rust-patterns"]
 
 [dependencies]
-struct-to-enum-macros = { path = "../struct-to-enum-macros", optional = true, version = "1.1.1" }
+struct-to-enum-macros = { path = "../struct-to-enum-macros", optional = true, version = "1.1.2" }
 
 [features]
 default = ["derive"]
