@@ -351,3 +351,171 @@ fn mixed_skip_and_nested_field_name() {
         ]
     );
 }
+
+mod nested_generics {
+    use struct_to_enum::*;
+
+    #[derive(FieldName)]
+    pub struct Slot<'a, A>
+    where
+        A: 'a,
+    {
+        pub index: u32,
+        pub data: &'a A,
+    }
+
+    #[derive(FieldName)]
+    pub struct Frame<'a, 'b, A, B>
+    where
+        A: 'a,
+        B: 'b,
+    {
+        pub id: u64,
+        #[stem_name(nested)]
+        pub slot_a: Slot<'a, A>,
+        pub tag: &'b B,
+    }
+
+    #[derive(FieldName)]
+    pub struct Entry<'e, K, V>
+    where
+        K: 'e,
+    {
+        pub key: &'e K,
+        pub val: V,
+        pub seq: u64,
+    }
+
+    #[derive(FieldName)]
+    pub struct Table<'e, K, V, M>
+    where
+        K: 'e,
+    {
+        pub meta: M,
+        #[stem_name(nested)]
+        pub head: Entry<'e, K, V>,
+        pub count: usize,
+    }
+
+    #[derive(FieldName)]
+    pub struct LeftBucket<'a, X>
+    where
+        X: 'a,
+    {
+        pub lptr: &'a X,
+        pub lsize: usize,
+    }
+
+    #[derive(FieldName)]
+    pub struct RightBucket<'b, Y>
+    where
+        Y: 'b,
+    {
+        pub rptr: &'b Y,
+        pub rsize: usize,
+    }
+
+    #[derive(FieldName)]
+    pub struct Pool<'a, 'b, X, Y>
+    where
+        X: 'a,
+        Y: 'b,
+    {
+        #[stem_name(skip)]
+        pub name: String,
+        pub id: u32,
+        #[stem_name(nested)]
+        pub left: LeftBucket<'a, X>,
+        #[stem_name(nested)]
+        pub right: RightBucket<'b, Y>,
+    }
+
+    #[derive(FieldName)]
+    pub struct Leaf<'a, T>
+    where
+        T: 'a,
+    {
+        pub raw: &'a T,
+        pub flag: bool,
+    }
+
+    #[derive(FieldName)]
+    pub struct Mid<'a, T>
+    where
+        T: 'a,
+    {
+        pub offset: i32,
+        #[stem_name(nested)]
+        pub leaf: Leaf<'a, T>,
+    }
+
+    #[derive(FieldName)]
+    pub struct GenOuter<'a, T, U>
+    where
+        T: 'a,
+    {
+        pub name: U,
+        #[stem_name(nested)]
+        pub mid: Mid<'a, T>,
+    }
+}
+
+use nested_generics::*;
+
+#[test]
+fn nested_generic_outer_two_lifetimes_two_params_field_names() {
+    let names = <Frame<'_, '_, u32, &str> as FieldNames<4>>::field_names();
+    assert_eq!(
+        names,
+        [
+            FrameFieldName::Id,
+            FrameFieldName::Index,
+            FrameFieldName::Data,
+            FrameFieldName::Tag,
+        ]
+    );
+}
+
+#[test]
+fn nested_generic_outer_three_params_one_lifetime_field_names() {
+    let names = <Table<'_, i32, i64, bool> as FieldNames<5>>::field_names();
+    assert_eq!(
+        names,
+        [
+            TableFieldName::Meta,
+            TableFieldName::Key,
+            TableFieldName::Val,
+            TableFieldName::Seq,
+            TableFieldName::Count,
+        ]
+    );
+}
+
+#[test]
+fn nested_generic_two_sibling_with_skip_field_names() {
+    let names = <Pool<'_, '_, u32, u64> as FieldNames<5>>::field_names();
+    assert_eq!(
+        names,
+        [
+            PoolFieldName::Id,
+            PoolFieldName::Lptr,
+            PoolFieldName::Lsize,
+            PoolFieldName::Rptr,
+            PoolFieldName::Rsize,
+        ]
+    );
+}
+
+#[test]
+fn nested_generic_three_levels_field_names() {
+    let names = <GenOuter<'_, u32, &str> as FieldNames<4>>::field_names();
+    assert_eq!(
+        names,
+        [
+            GenOuterFieldName::Name,
+            GenOuterFieldName::Offset,
+            GenOuterFieldName::Raw,
+            GenOuterFieldName::Flag,
+        ]
+    );
+}

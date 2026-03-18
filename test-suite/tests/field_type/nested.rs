@@ -425,3 +425,210 @@ fn mixed_skip_and_nested_field_type() {
     assert_eq!(fields[2], MixedTypeFieldType::Q(false));
     assert_eq!(fields[3], MixedTypeFieldType::D(99));
 }
+
+mod nested_generics {
+    use super::*;
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Slot<'a, A>
+    where
+        A: 'a,
+    {
+        pub index: u32,
+        pub data: &'a A,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Frame<'a, 'b, A, B>
+    where
+        A: 'a,
+        B: 'b,
+    {
+        pub id: u64,
+        #[stem_type(nested)]
+        pub slot_a: Slot<'a, A>,
+        pub tag: &'b B,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Entry<'e, K, V>
+    where
+        K: 'e,
+    {
+        pub key: &'e K,
+        pub val: V,
+        pub seq: u64,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Table<'e, K, V, M>
+    where
+        K: 'e,
+    {
+        pub meta: M,
+        #[stem_type(nested)]
+        pub head: Entry<'e, K, V>,
+        pub count: usize,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct LeftBucket<'a, X>
+    where
+        X: 'a,
+    {
+        pub lptr: &'a X,
+        pub lsize: usize,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct RightBucket<'b, Y>
+    where
+        Y: 'b,
+    {
+        pub rptr: &'b Y,
+        pub rsize: usize,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Pool<'a, 'b, X, Y>
+    where
+        X: 'a,
+        Y: 'b,
+    {
+        #[stem_type(skip)]
+        pub name: String,
+        pub id: u32,
+        #[stem_type(nested)]
+        pub left: LeftBucket<'a, X>,
+        #[stem_type(nested)]
+        pub right: RightBucket<'b, Y>,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Leaf<'a, T>
+    where
+        T: 'a,
+    {
+        pub raw: &'a T,
+        pub flag: bool,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Mid<'a, T>
+    where
+        T: 'a,
+    {
+        pub offset: i32,
+        #[stem_type(nested)]
+        pub leaf: Leaf<'a, T>,
+    }
+
+    #[derive(FieldType)]
+    #[stem_type_derive(Debug, Clone, PartialEq)]
+    pub struct Outer<'a, T, U>
+    where
+        T: 'a,
+    {
+        pub name: U,
+        #[stem_type(nested)]
+        pub mid: Mid<'a, T>,
+    }
+}
+
+use nested_generics::*;
+
+#[test]
+fn nested_outer_two_lifetimes_two_params_threads_into_inner() {
+    let a_val = 42u32;
+    let b_val = "tag";
+    let slot_a = Slot {
+        index: 0,
+        data: &a_val,
+    };
+    let frame = Frame::<'_, '_, u32, &str> {
+        id: 7,
+        slot_a,
+        tag: &b_val,
+    };
+
+    let fields: [FrameFieldType<u32, &str>; 4] = frame.into();
+    assert_eq!(fields[0], FrameFieldType::Id(7));
+    assert_eq!(fields[1], FrameFieldType::Index(0));
+    assert_eq!(fields[2], FrameFieldType::Data(&a_val));
+    assert_eq!(fields[3], FrameFieldType::Tag(&b_val));
+}
+
+#[test]
+fn nested_outer_three_params_one_lifetime_threads_two_into_inner() {
+    let k = 42i32;
+    let t = Table::<'_, i32, i64, bool> {
+        meta: true,
+        head: Entry {
+            key: &k,
+            val: 99i64,
+            seq: 1,
+        },
+        count: 3,
+    };
+    let fields: [TableFieldType<i32, i64, bool>; 5] = t.into();
+    assert_eq!(fields[0], TableFieldType::Meta(true));
+    assert_eq!(fields[1], TableFieldType::Key(&k));
+    assert_eq!(fields[2], TableFieldType::Val(99i64));
+    assert_eq!(fields[3], TableFieldType::Seq(1));
+    assert_eq!(fields[4], TableFieldType::Count(3));
+}
+
+#[test]
+fn nested_two_sibling_generic_nested_with_skip_into() {
+    let x_val = 10u32;
+    let y_val = 20u64;
+    let pool = Pool::<'_, '_, u32, u64> {
+        name: "ignored".to_string(),
+        id: 5,
+        left: LeftBucket {
+            lptr: &x_val,
+            lsize: 4,
+        },
+        right: RightBucket {
+            rptr: &y_val,
+            rsize: 8,
+        },
+    };
+
+    let fields: [PoolFieldType<u32, u64>; 5] = pool.into();
+    assert_eq!(fields[0], PoolFieldType::Id(5));
+    assert_eq!(fields[1], PoolFieldType::Lptr(&x_val));
+    assert_eq!(fields[2], PoolFieldType::Lsize(4));
+    assert_eq!(fields[3], PoolFieldType::Rptr(&y_val));
+    assert_eq!(fields[4], PoolFieldType::Rsize(8));
+}
+
+#[test]
+fn nested_three_levels_generic_threading_into() {
+    let raw_val = 7u32;
+    let o = Outer::<'_, u32, &str> {
+        name: "top",
+        mid: Mid {
+            offset: -1,
+            leaf: Leaf {
+                raw: &raw_val,
+                flag: true,
+            },
+        },
+    };
+
+    let fields: [OuterFieldType<u32, &str>; 4] = o.into();
+    assert_eq!(fields[0], OuterFieldType::Name("top"));
+    assert_eq!(fields[1], OuterFieldType::Offset(-1));
+    assert_eq!(fields[2], OuterFieldType::Raw(&raw_val));
+    assert_eq!(fields[3], OuterFieldType::Flag(true));
+}
