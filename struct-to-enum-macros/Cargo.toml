@@ -1,13 +1,13 @@
 [package]
 name = "struct-to-enum-macros"
 version = "1.1.1"
-rust-version = "1.85.0"
+rust-version = "1.71.0"
 authors = ["Sinder <smirnov.sinder@gmail.com>"]
 description = "Derive macros for generating enums from structs."
 readme = "../README.md"
 keywords = ["derive", "macros", "enum", "struct", "codegen"]
 categories = ["development-tools::procedural-macro-helpers"]
-edition = "2024"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/sinder38/struct-to-enum"
 
