@@ -6,7 +6,8 @@ use syn::{DeriveInput, Ident, Path};
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
 use crate::common::{
-    extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter, path_to_string,
+    DeriveVariant, extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter,
+    path_to_string,
 };
 
 /// Returns the hidden helper macro identifier used to forward field-name entries
@@ -88,27 +89,32 @@ impl DeriveFieldName {
 
         let extra_attrs = get_meta_list(&input.attrs, &["stem_name_attr", "ste_name_attr"])?;
 
-        let fields = filter_fields(&struct_fields, &["stem_name", "ste_name"])?;
+        let fields = filter_fields(
+            &struct_fields,
+            &["stem_name", "ste_name"],
+            DeriveVariant::Name,
+        )?;
 
         let type_snake = ident.to_string().to_snake_case();
 
         // Build declaration-order slots: merge consecutive regular fields into one Regular slot.
         let mut slots: Vec<FieldSlot> = Vec::new();
         for f in &fields {
+            #[cfg(feature = "nested-type")]
             if f.is_nested {
                 let inner_type_ident = extract_type_ident(&f.field_ty)?;
                 let inner_snake = inner_type_ident.to_string().to_snake_case();
                 slots.push(FieldSlot::Nested(get_helper_macro_name(&inner_snake)));
+                continue;
+            }
+            let pair = FieldNamePair {
+                variant_ident: f.variant_ident.to_owned(),
+                field_name: f.field_ident.to_string(),
+            };
+            if let Some(FieldSlot::Regular(pairs)) = slots.last_mut() {
+                pairs.push(pair);
             } else {
-                let pair = FieldNamePair {
-                    variant_ident: f.variant_ident.to_owned(),
-                    field_name: f.field_ident.to_string(),
-                };
-                if let Some(FieldSlot::Regular(pairs)) = slots.last_mut() {
-                    pairs.push(pair);
-                } else {
-                    slots.push(FieldSlot::Regular(vec![pair]));
-                }
+                slots.push(FieldSlot::Regular(vec![pair]));
             }
         }
 
@@ -126,11 +132,21 @@ impl DeriveFieldName {
 
     /// Generates the derived `FieldName` enum and its implmentations
     /// uses either simple or nested expansion path.
-    pub fn expand(&self) -> syn::Result<TokenStream2> {
-        let has_nested = self.slots.iter().any(|s| matches!(s, FieldSlot::Nested(_)));
-        if has_nested {
-            self.expand_nested()
-        } else {
+    pub fn expand(self) -> syn::Result<TokenStream2> {
+        #[cfg(feature = "nested-name")]
+        {
+            let has_nested = self
+                .slots
+                .iter()
+                .any(|s| matches!(s, FieldSlot::Nested { .. }));
+            if has_nested {
+                self.expand_nested()
+            } else {
+                self.expand_simple()
+            }
+        }
+        #[cfg(not(feature = "nested-name"))]
+        {
             self.expand_simple()
         }
     }
@@ -196,6 +212,7 @@ impl DeriveFieldName {
 
     /// Expands the struct with one or more nested fields using a chain of step macros
     /// that accumulate `Variant => "name"` pairs
+    #[cfg(feature = "nested-name")]
     fn expand_nested(&self) -> syn::Result<TokenStream2> {
         let type_snake = &self.type_snake;
 

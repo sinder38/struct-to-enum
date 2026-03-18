@@ -6,6 +6,10 @@ edition = "2024"
 publish = false
 
 
+[features]
+nested-type = ["struct-to-enum/nested-type"]
+nested-name = ["struct-to-enum/nested-name"]
+
 [dependencies]
 struct-to-enum = { path = "../struct-to-enum", features = ["derive"] }
 

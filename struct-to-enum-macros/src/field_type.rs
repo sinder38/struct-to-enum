@@ -3,7 +3,9 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{DeriveInput, Ident, Type};
 
-use crate::common::{extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter};
+use crate::common::{
+    DeriveVariant, extract_type_ident, filter_fields, get_meta_list, macro_rules_field_counter,
+};
 
 #[inline]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
@@ -77,7 +79,11 @@ impl DeriveFieldType {
             }
         };
 
-        let fields = filter_fields(&struct_fields, &["stem_type", "ste_type"])?;
+        let fields = filter_fields(
+            &struct_fields,
+            &["stem_type", "ste_type"],
+            DeriveVariant::Type,
+        )?;
 
         let type_snake = ident.to_string().to_snake_case();
         // PERF: merge filte_fields and slot conversion.
@@ -85,6 +91,7 @@ impl DeriveFieldType {
         // Build declaration-order slots
         let mut slots: Vec<FieldSlot> = Vec::new();
         for f in fields {
+            #[cfg(feature = "nested-type")]
             if f.is_nested {
                 let inner_type_ident = extract_type_ident(&f.field_ty)?;
                 let inner_snake = inner_type_ident.to_string().to_snake_case();
@@ -92,20 +99,17 @@ impl DeriveFieldType {
                     helper_macro: get_helper_macro_name(&inner_snake),
                     field_ident: f.field_ident.clone(),
                 });
-            } else {
-                // Form current field
-                let field = NormalField {
-                    variant_ident: f.variant_ident.clone(),
-                    field_ident: f.field_ident.clone(),
-                    field_ty: f.field_ty.clone(),
-                };
+                continue;
+            }
 
-                // Append to last slot if or create a new one if It's Nested
-                if let Some(FieldSlot::Regular(triples)) = slots.last_mut() {
-                    triples.push(field);
-                } else {
-                    slots.push(FieldSlot::Regular(vec![field]));
-                }
+            let field = NormalField {
+                variant_ident: f.variant_ident.clone(),
+                field_ident: f.field_ident.clone(),
+                field_ty: f.field_ty.clone(),
+            };
+            match slots.last_mut() {
+                Some(FieldSlot::Regular(triples)) => triples.push(field),
+                _ => slots.push(FieldSlot::Regular(vec![field])),
             }
         }
 
@@ -122,13 +126,20 @@ impl DeriveFieldType {
     }
 
     pub fn expand(self) -> syn::Result<TokenStream2> {
-        let has_nested = self
-            .slots
-            .iter()
-            .any(|s| matches!(s, FieldSlot::Nested { .. }));
-        if has_nested {
-            self.expand_nested()
-        } else {
+        #[cfg(feature = "nested-type")]
+        {
+            let has_nested = self
+                .slots
+                .iter()
+                .any(|s| matches!(s, FieldSlot::Nested { .. }));
+            if has_nested {
+                self.expand_nested()
+            } else {
+                self.expand_simple()
+            }
+        }
+        #[cfg(not(feature = "nested-type"))]
+        {
             self.expand_simple()
         }
     }
@@ -152,21 +163,33 @@ impl DeriveFieldType {
             quote! { #variant_ident(#field_ty) { $($pfx)* . #field_ident }, }
         });
 
-        let own_helper = quote! {
-            #[doc(hidden)]
-            #[macro_export]
-            macro_rules! #helper_macro_name {
-                ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
-                    $callback!{$($acc)* #(#entries)*}
-                };
-            }
-        };
+        // If nested-type or nested-name feature is enabled, emit the helper macro
+        #[cfg(feature = "nested-type")]
+        {
+            let own_helper = quote! {
+                #[doc(hidden)]
+                #[macro_export]
+                macro_rules! #helper_macro_name {
+                    ($callback:tt; { $($pfx:tt)* }; $($acc:tt)*) => {
+                        $callback!{$($acc)* #(#entries)*}
+                    };
+                }
+            };
 
-        Ok(quote! {
-            #enum_def
-            #converter
-            #own_helper
-        })
+            Ok(quote! {
+                #enum_def
+                #converter
+                #own_helper
+            })
+        }
+
+        #[cfg(not(feature = "nested-type"))]
+        {
+            Ok(quote! {
+                #enum_def
+                #converter
+            })
+        }
     }
 
     fn get_fields_for_simple(&self) -> &[NormalField] {
@@ -178,6 +201,7 @@ impl DeriveFieldType {
         }
     }
 
+    #[cfg(feature = "nested-type")]
     fn expand_nested(&self) -> syn::Result<TokenStream2> {
         let (_, ty_generics, _) = self.generics.split_for_impl();
         let type_snake = &self.type_snake;
@@ -273,6 +297,7 @@ impl DeriveFieldType {
     /// Builder macro: receives all `Variant(Type) { .path },` entries
     /// and generates the enum and From impls.
     /// The path entries are like `.a` or `.inner.x` - the builder prepends `source`.
+    #[cfg(feature = "nested-type")]
     fn generate_field_type_builder_macro(
         &self,
         macro_name: &Ident,

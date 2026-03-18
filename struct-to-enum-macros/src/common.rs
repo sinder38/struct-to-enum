@@ -5,6 +5,13 @@ use syn::{Attribute, Fields, Ident, Meta, Type};
 
 use heck::ToUpperCamelCase;
 
+//TODO: maybe I could move derive name constants to this Enum, not sure
+#[derive(Debug, Clone, Copy)]
+pub enum DeriveVariant {
+    Type,
+    Name,
+}
+
 #[derive(Clone)]
 pub struct FieldInfo {
     /// Original struct field ident
@@ -13,6 +20,7 @@ pub struct FieldInfo {
     pub field_ty: Type,
     /// Related field ident for generated enum
     pub variant_ident: Ident,
+    #[cfg(any(feature = "nested-type", feature = "nested-name"))]
     /// Has is_nested attribute
     pub is_nested: bool,
 }
@@ -46,7 +54,11 @@ pub fn get_meta_list(
 
 /// Collect struct fields, skipping marked `skip` record marked as `nested`
 /// Returns `FieldInfo` for each included field.
-pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Result<Vec<FieldInfo>> {
+pub fn filter_fields(
+    fields: &Fields,
+    attr_names: &[&'static str],
+    derive_type: DeriveVariant,
+) -> syn::Result<Vec<FieldInfo>> {
     let mut result = Vec::new();
     for field in fields.iter() {
         let is_skip = field
@@ -63,6 +75,29 @@ pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Resul
             .iter()
             .any(|attr| has_attr_with_value(attr, attr_names, "nested"));
 
+        match derive_type {
+            DeriveVariant::Type =>
+            {
+                #[cfg(not(feature = "nested-type"))]
+                if is_nested {
+                    return Err(syn::Error::new_spanned(
+                        field,
+                        "nested fields are not supported without the 'nested-type' feature",
+                    ));
+                }
+            }
+            DeriveVariant::Name =>
+            {
+                #[cfg(not(feature = "nested-name"))]
+                if is_nested {
+                    return Err(syn::Error::new_spanned(
+                        field,
+                        "nested fields are not supported without the 'nested-name' feature",
+                    ));
+                }
+            }
+        }
+
         let field_ident = field.ident.as_ref().unwrap().clone();
 
         // TODO: allow changing Enum varint ident generation
@@ -73,6 +108,7 @@ pub fn filter_fields(fields: &Fields, attr_names: &[&'static str]) -> syn::Resul
             field_ident,
             field_ty: field.ty.clone(),
             variant_ident,
+            #[cfg(any(feature = "nested-type", feature = "nested-name"))]
             is_nested,
         });
     }

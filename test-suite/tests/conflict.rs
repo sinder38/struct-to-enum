@@ -538,6 +538,7 @@ fn strum_combined_into() {
 }
 
 // Combined FieldType + FieldName with nesting
+#[cfg(all(feature = "nested-type", feature = "nested-name"))]
 mod combined_nested_mod {
     use struct_to_enum::{FieldName, FieldType};
 
@@ -559,8 +560,10 @@ mod combined_nested_mod {
     }
 }
 
+#[cfg(all(feature = "nested-type", feature = "nested-name"))]
 use combined_nested_mod::{Document, DocumentFieldName, DocumentFieldType, Meta};
 
+#[cfg(all(feature = "nested-type", feature = "nested-name"))]
 #[test]
 fn combined_nested_field_type_and_name() {
     let doc = Document {

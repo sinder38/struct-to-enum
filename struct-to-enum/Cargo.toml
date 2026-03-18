@@ -13,4 +13,7 @@ repository = "https://github.com/sinder38/struct-to-enum"
 struct-to-enum-macros = { path = "../struct-to-enum-macros", optional = true, version = "1.0.1" }
 
 [features]
+default = ["derive"]
 derive = ["struct-to-enum-macros"]
+nested-type = ["struct-to-enum-macros?/nested-type"]
+nested-name = ["struct-to-enum-macros?/nested-name"]
