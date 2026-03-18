@@ -27,6 +27,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace -- -D warnings
+      - run: cargo clippy --workspace --features nested-type,nested-name -- -D warnings
 
   rustfmt:
     name: Rust-fmt
@@ -39,23 +40,40 @@ jobs:
       - run: cargo fmt --all -- --check
 
   test:
-    name: Test (stable)
+    name: Test ${{ matrix.features }} (stable)
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - features: "no features"
+            flags: ""
+          - features: "nested-type"
+            flags: "--features nested-type"
+          - features: "nested-name"
+            flags: "--features nested-name"
+          - features: "nested-type,nested-name"
+            flags: "--features nested-type,nested-name"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build workspace
-        run: cargo build --workspace --verbose
+        run: cargo build --workspace --verbose ${{ matrix.flags }}
       - name: Run tests
-        run: cargo test --workspace --verbose
+        run: cargo test --workspace --verbose ${{ matrix.flags }}
 
   msrv:
-    name: MSRV (${{ matrix.toolchain }})
+    name: MSRV ${{ matrix.features }} (${{ matrix.toolchain }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        toolchain: ["1.85.0"]
+        include:
+          - toolchain: "1.85.0"
+            features: "no features"
+            flags: ""
+          - toolchain: "1.85.0"
+            features: "nested-type,nested-name"
+            flags: "--features nested-type,nested-name"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -63,6 +81,6 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
       - name: Build workspace
-        run: cargo build --workspace --verbose
+        run: cargo build --workspace --verbose ${{ matrix.flags }}
       - name: Run tests
-        run: cargo test --workspace --verbose
+        run: cargo test --workspace --verbose ${{ matrix.flags }}
