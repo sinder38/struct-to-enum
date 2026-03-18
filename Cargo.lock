@@ -58,14 +58,14 @@ dependencies = [
 
 [[package]]
 name = "struct-to-enum"
-version = "1.0.1"
+version = "1.1.1"
 dependencies = [
  "struct-to-enum-macros",
 ]
 
 [[package]]
 name = "struct-to-enum-macros"
-version = "1.0.1"
+version = "1.1.1"
 dependencies = [
  "heck",
  "proc-macro2",

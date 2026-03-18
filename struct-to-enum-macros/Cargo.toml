@@ -1,6 +1,6 @@
 [package]
 name = "struct-to-enum-macros"
-version = "1.0.1"
+version = "1.1.1"
 rust-version = "1.85.0"
 authors = ["Sinder <smirnov.sinder@gmail.com>"]
 description = "Derive macros for generating enums from structs."
