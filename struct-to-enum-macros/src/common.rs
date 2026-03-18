@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::ToTokens;
 #[cfg(any(feature = "nested-type", feature = "nested-name"))]
 use quote::quote;
+use quote::ToTokens;
 use syn::{Attribute, Fields, Ident, Meta, Type};
 
 use heck::ToUpperCamelCase;
@@ -61,7 +61,7 @@ pub fn filter_fields(
     derive_type: DeriveVariant,
 ) -> syn::Result<Vec<FieldInfo>> {
     let mut result = Vec::new();
-    for field in fields.iter() {
+    for field in fields {
         let is_skip = field
             .attrs
             .iter()
@@ -131,7 +131,7 @@ fn get_attr_value(attr: &Attribute, attr_names: &[&str]) -> syn::Result<Option<S
         // #[... = "skip"]  value is an expression
         Meta::NameValue(name_value) => name_value.value.to_token_stream().to_string(),
 
-        _ => {
+        Meta::Path(_) => {
             return Err(syn::Error::new_spanned(meta, "Unknown attribute format"));
         }
     };
@@ -145,8 +145,7 @@ fn has_attr_with_value(attr: &Attribute, attr_names: &[&str], expected: &str) ->
     get_attr_value(attr, attr_names)
         .ok()
         .flatten()
-        .map(|v| v == expected)
-        .unwrap_or(false)
+        .is_some_and(|v| v == expected)
 }
 
 /// Extract the type name from a path

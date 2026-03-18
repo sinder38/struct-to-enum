@@ -155,8 +155,10 @@ use syn::DeriveInput;
 pub fn field_type(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     DeriveFieldType::new(input)
-        .and_then(|d| d.expand())
-        .unwrap_or_else(|e| e.to_compile_error())
+        .map_or_else(
+            |e| e.to_compile_error(),
+            field_type::DeriveFieldType::expand,
+        )
         .into()
 }
 
@@ -292,7 +294,9 @@ pub fn field_type(input: TokenStream) -> TokenStream {
 pub fn field_name(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
     DeriveFieldName::new(input)
-        .and_then(|d| d.expand())
-        .unwrap_or_else(|e| e.to_compile_error())
+        .map_or_else(
+            |e| e.to_compile_error(),
+            field_name::DeriveFieldName::expand,
+        )
         .into()
 }

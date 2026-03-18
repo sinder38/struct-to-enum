@@ -5,13 +5,13 @@ use syn::{DeriveInput, Ident, Path};
 
 const DEFAULT_DERIVES: &[&str] = &["Debug", "PartialEq", "Eq", "Clone", "Copy"];
 
-use crate::common::{DeriveVariant, filter_fields, get_meta_list, path_to_string};
 #[cfg(feature = "nested-name")]
 use crate::common::{extract_type_ident, macro_rules_field_counter};
+use crate::common::{filter_fields, get_meta_list, path_to_string, DeriveVariant};
 
 fn get_helper_macro_name(type_snake: &str) -> Ident {
     Ident::new(
-        &format!("__{}_field_name_variants", type_snake),
+        &format!("__{type_snake}_field_name_variants"),
         Span::call_site(),
     )
 }
@@ -23,7 +23,7 @@ struct FieldNamePair {
 
 /// A single field slot in declaration order
 enum FieldSlot {
-    /// One or more consecutive regular fields: (variant_ident, field_name)
+    /// One or more consecutive regular fields: (`variant_ident`, `field_name`)
     Regular(Vec<FieldNamePair>),
     /// A nested field - calls to the inner type's helper macro
     #[cfg(feature = "nested-name")]
@@ -61,7 +61,7 @@ pub struct DeriveFieldName {
 }
 
 impl DeriveFieldName {
-    /// Parses DeriveInput and collects data into [`DeriveFieldName`]
+    /// Parses `DeriveInput` and collects data into [`DeriveFieldName`]
     pub fn new(input: DeriveInput) -> syn::Result<Self> {
         let vis = input.vis;
         let ident = input.ident;
@@ -105,7 +105,7 @@ impl DeriveFieldName {
                 continue;
             }
             let pair = FieldNamePair {
-                variant_ident: f.variant_ident.to_owned(),
+                variant_ident: f.variant_ident.clone(),
                 field_name: f.field_ident.to_string(),
             };
             if let Some(FieldSlot::Regular(pairs)) = slots.last_mut() {
@@ -129,7 +129,7 @@ impl DeriveFieldName {
 
     /// Generates the derived `FieldName` enum and its implmentations
     /// uses either simple or nested expansion path.
-    pub fn expand(self) -> syn::Result<TokenStream2> {
+    pub fn expand(self) -> TokenStream2 {
         #[cfg(feature = "nested-name")]
         {
             let has_nested = self
@@ -149,7 +149,7 @@ impl DeriveFieldName {
     }
 
     /// Returns the flat list of `FieldNamePair`s
-    /// Only valid when there are no nested slots (expant_simple)
+    /// Only valid when there are no nested slots (expand simple)
     fn get_fields_for_simple(&self) -> &[FieldNamePair] {
         //PERF: this function is called several times instead of once
         // debug_assert_eq!(self.slots.len(), 1);
@@ -161,7 +161,7 @@ impl DeriveFieldName {
     }
 
     /// Expands with no nested fields
-    fn expand_simple(&self) -> syn::Result<TokenStream2> {
+    fn expand_simple(&self) -> TokenStream2 {
         // No nested fields-  exactly one Regular slot.
         let pairs = self.get_fields_for_simple();
         let entries = FieldSlot::entries(pairs);
@@ -198,19 +198,19 @@ impl DeriveFieldName {
         };
         let variant_counter = quote! { #variant_count };
         let enum_def = self.gen_enum_def(derive_attrs, &variants);
-        let field_names_impl = self.gen_field_names_impl(&constructs, variant_counter);
+        let field_names_impl = self.gen_field_names_impl(&constructs, &variant_counter);
 
-        Ok(quote! {
+        quote! {
             #enum_def
             #field_names_impl
             #own_helper
-        })
+        }
     }
 
     /// Expands the struct with one or more nested fields using a chain of step macros
     /// that accumulate `Variant => "name"` pairs
     #[cfg(feature = "nested-name")]
-    fn expand_nested(&self) -> syn::Result<TokenStream2> {
+    fn expand_nested(&self) -> TokenStream2 {
         let type_snake = &self.type_snake;
 
         let builder_macro_name = Ident::new(
@@ -275,12 +275,12 @@ impl DeriveFieldName {
             }
         };
 
-        Ok(quote! {
+        quote! {
             #builder_macro
             #(#step_macros)*
             #own_helper
             #invocation
-        })
+        }
     }
 
     /// Emit the builder macro that, once it has the full flat list of
@@ -294,7 +294,7 @@ impl DeriveFieldName {
         let variant_counter = macro_rules_field_counter();
         let enum_def = self.gen_enum_def(enum_derives, &[quote!($($variant),*)]);
         let field_names_impl =
-            self.gen_field_names_impl(&[quote!($(#enum_ty::$variant),*)], variant_counter);
+            self.gen_field_names_impl(&[quote!($(#enum_ty::$variant),*)], &variant_counter);
 
         quote! {
             #[doc(hidden)]
@@ -322,11 +322,11 @@ impl DeriveFieldName {
     }
 
     /// Generates the `impl FieldNames<N> for OriginalStruct` block
-    /// variant_counter has to be `Tokenstream2` because nested enum field names aren't known at derive macro level
+    /// `variant_counter` has to be `Tokenstream2` because nested enum field names aren't known at derive macro level
     fn gen_field_names_impl(
         &self,
         constructs: &[TokenStream2],
-        variant_counter: TokenStream2,
+        variant_counter: &TokenStream2,
     ) -> TokenStream2 {
         let (impl_generics, ty_generics, where_clause) = self.generics.split_for_impl();
         let ident = &self.ident;

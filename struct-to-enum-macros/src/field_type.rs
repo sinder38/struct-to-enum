@@ -4,9 +4,9 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{DeriveInput, Ident, Type};
 
-use crate::common::{DeriveVariant, filter_fields, get_meta_list};
 #[cfg(feature = "nested-type")]
 use crate::common::{extract_type_ident, macro_rules_field_counter};
+use crate::common::{filter_fields, get_meta_list, DeriveVariant};
 
 #[cfg(feature = "nested-type")]
 fn get_helper_macro_name(type_snake: &str) -> Ident {
@@ -40,7 +40,7 @@ impl std::fmt::Debug for NormalField {
 
 /// A single field slot in declaration order
 enum FieldSlot {
-    /// One or more consecutive regular fields: (variant_ident, field_ident, field_type)
+    /// One or more consecutive regular fields: (`variant_ident`, `field_ident`, `field_ty`)
     Regular(Vec<NormalField>),
     /// A nested field - calls to the inner type's helper macro
     #[cfg(feature = "nested-type")]
@@ -130,7 +130,7 @@ impl DeriveFieldType {
         })
     }
 
-    pub fn expand(self) -> syn::Result<TokenStream2> {
+    pub fn expand(self) -> TokenStream2 {
         #[cfg(feature = "nested-type")]
         {
             let has_nested = self
@@ -149,7 +149,7 @@ impl DeriveFieldType {
         }
     }
 
-    fn expand_simple(self) -> syn::Result<TokenStream2> {
+    fn expand_simple(self) -> TokenStream2 {
         let enum_def = self.enum_definition();
         let converter = self.converter_impl();
 
@@ -175,18 +175,19 @@ impl DeriveFieldType {
                     };
                 }
             };
-            Ok(quote! {
+
+            return quote! {
                 #enum_def
                 #converter
                 #own_helper
-            })
+            };
         }
 
         #[cfg(not(feature = "nested-type"))]
-        Ok(quote! {
+        quote! {
             #enum_def
             #converter
-        })
+        }
     }
 
     fn get_fields_for_simple(&self) -> &[NormalField] {
@@ -199,7 +200,7 @@ impl DeriveFieldType {
     }
 
     #[cfg(feature = "nested-type")]
-    fn expand_nested(&self) -> syn::Result<TokenStream2> {
+    fn expand_nested(&self) -> TokenStream2 {
         let (_, ty_generics, _) = self.generics.split_for_impl();
         let type_snake = &self.type_snake;
 
@@ -283,12 +284,12 @@ impl DeriveFieldType {
             }
         };
 
-        Ok(quote! {
+        quote! {
             #builder_macro
             #(#step_macros)*
             #own_helper
             #invocation
-        })
+        }
     }
 
     /// Builder macro: receives all `Variant(Type) { .path },` entries

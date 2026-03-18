@@ -148,13 +148,12 @@ mod mixed_skip_nested_mod {
         pub inner: InnerMixed,
         #[stem_name(skip)]
         pub c: i32,
+
         pub d: i32,
     }
 }
 
 use mixed_skip_nested_mod::{Mixed, MixedFieldName};
-
-use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldName};
 
 // Complex nesting
 mod complex_nesting {
@@ -233,6 +232,7 @@ mod complex_nesting {
         pub ghijklmnop: GHIJKLMNOP,
     }
 }
+use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOPFieldName, ABCDEFGHIJKLMNOP};
 
 #[test]
 fn complex_fields_field_name() {

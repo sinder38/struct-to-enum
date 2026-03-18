@@ -2,7 +2,7 @@
 name = "struct-to-enum-tests"
 version = "0.0.0"
 authors = ["Sinder <smirnov.sinder@gmail.com>"]
-edition = "2024"
+edition = "2021"
 publish = false
 
 

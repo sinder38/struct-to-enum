@@ -169,8 +169,6 @@ struct MixedType {
     d: i32,
 }
 
-use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOP, ABCDEFGHIJKLMNOPFieldType};
-
 // Complex nesting
 mod complex_nesting {
     use struct_to_enum::FieldType;
@@ -258,6 +256,8 @@ mod complex_nesting {
         pub ghijklmnop: GHIJKLMNOP,
     }
 }
+
+use crate::nested::complex_nesting::{ABCDEFGHIJKLMNOPFieldType, ABCDEFGHIJKLMNOP};
 
 #[test]
 fn complex_fields_field_type() {
