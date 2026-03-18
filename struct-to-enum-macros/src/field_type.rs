@@ -176,11 +176,11 @@ impl DeriveFieldType {
                 }
             };
 
-            return quote! {
+            quote! {
                 #enum_def
                 #converter
                 #own_helper
-            };
+            }
         }
 
         #[cfg(not(feature = "nested-type"))]
