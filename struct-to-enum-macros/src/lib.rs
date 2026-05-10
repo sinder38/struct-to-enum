@@ -8,6 +8,7 @@
 mod common;
 mod field_name;
 mod field_type;
+mod reverse;
 
 use field_name::DeriveFieldName;
 use field_type::DeriveFieldType;
@@ -298,5 +299,125 @@ pub fn field_name(input: TokenStream) -> TokenStream {
             |e| e.to_compile_error(),
             field_name::DeriveFieldName::expand,
         )
+        .into()
+}
+
+/// Generates a test that verifies a hand-written enum matches what [`FieldName`] would generate.
+///
+/// Use this when you define the enum yourself (the "reverse" of letting the macro generate it)
+/// and want a compile-time + runtime check that the struct and enum stay in sync.
+///
+/// The generated test verifies:
+/// - Every expected variant exists on the enum (compile error if missing)
+/// - The enum has no extra variants (exhaustive match — compile error if extra)
+/// - Variants appear in field declaration order
+///
+/// Only field-level properties are checked (variant names derived from field names).
+/// Container-level derives and attributes are **not** verified.
+///
+/// # Attributes
+/// | Attribute | Target | Description |
+/// |-----------|--------|-------------|
+/// | `#[stem_reverse_name(EnumPath)]` | struct | **Required.** Path to the existing enum to verify against. |
+/// | `#[stem_name(skip)]` | field | Exclude this field (same as `FieldName`). |
+///
+/// All `stem_*` attributes have short aliases: `ste_reverse_name`, `ste_name`.
+///
+/// # Example
+///
+/// ```rust
+/// use struct_to_enum::VerifyFieldName;
+///
+/// #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+/// enum UserFieldName {
+///     Id,
+///     UserName,
+/// }
+///
+/// #[derive(VerifyFieldName)]
+/// #[stem_reverse_name(UserFieldName)]
+/// struct User {
+///     id: u64,
+///     user_name: String,
+///     #[stem_name(skip)]
+///     internal_token: String,
+/// }
+///
+/// // A test is generated that asserts UserFieldName has variants Id, UserName
+/// // in that order, with no extra variants.
+/// ```
+#[proc_macro_derive(
+    VerifyFieldName,
+    attributes(
+        stem_reverse_name,
+        ste_reverse_name,
+        stem_name,
+        ste_name,
+    )
+)]
+pub fn verify_field_name(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as DeriveInput);
+    reverse::expand_verify_field_name(input)
+        .unwrap_or_else(|e| e.to_compile_error())
+        .into()
+}
+
+/// Generates a test that verifies a hand-written enum matches what [`FieldType`] would generate.
+///
+/// Use this when you define the enum yourself (the "reverse" of letting the macro generate it)
+/// and want a compile-time + runtime check that the struct and enum stay in sync.
+///
+/// The generated test verifies:
+/// - Every expected variant exists on the enum (compile error if missing)
+/// - Each variant wraps the correct field type (compile error if wrong)
+/// - The enum has no extra variants (exhaustive match — compile error if extra)
+///
+/// Only field-level properties are checked (variant names and types).
+/// Container-level derives and attributes are **not** verified.
+///
+/// # Attributes
+/// | Attribute | Target | Description |
+/// |-----------|--------|-------------|
+/// | `#[stem_reverse_type(EnumPath)]` | struct | **Required.** Path to the existing enum to verify against. |
+/// | `#[stem_type(skip)]` | field | Exclude this field (same as `FieldType`). |
+///
+/// All `stem_*` attributes have short aliases: `ste_reverse_type`, `ste_type`.
+///
+/// # Example
+///
+/// ```rust
+/// use struct_to_enum::VerifyFieldType;
+///
+/// #[derive(Debug, PartialEq)]
+/// enum ConfigFieldType {
+///     Width(u32),
+///     Height(u32),
+/// }
+///
+/// #[derive(VerifyFieldType)]
+/// #[stem_reverse_type(ConfigFieldType)]
+/// struct Config {
+///     width: u32,
+///     height: u32,
+///     #[stem_type(skip)]
+///     name: String,
+/// }
+///
+/// // A test is generated that asserts ConfigFieldType has variants
+/// // Width(u32) and Height(u32), with no extra variants.
+/// ```
+#[proc_macro_derive(
+    VerifyFieldType,
+    attributes(
+        stem_reverse_type,
+        ste_reverse_type,
+        stem_type,
+        ste_type,
+    )
+)]
+pub fn verify_field_type(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as DeriveInput);
+    reverse::expand_verify_field_type(input)
+        .unwrap_or_else(|e| e.to_compile_error())
         .into()
 }
